@@ -13,9 +13,14 @@ public class Main {
 	public static void main(String[] args) throws IOException {
 		System.setProperty("file.encoding", "UTF-8");
 
-		String option = args[0];
-		String path = args[1];
+//		String option = args[0];
+//		String path = args[1];
 
+
+
+		filter f = new filter();
+
+		f.readFile();
 
 	}
 
