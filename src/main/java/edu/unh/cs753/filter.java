@@ -9,7 +9,7 @@ import java.util.ArrayList;
 public class filter {
 
 
-    public static ArrayList<String> readfilespam() throws IOException {
+    public static ArrayList<String> readfilespamfull() throws IOException {
 
         ArrayList<String> spam = new ArrayList<>();
 
@@ -40,7 +40,7 @@ public class filter {
     }
 
 
-    public static ArrayList<String> readfileham() throws IOException {
+    public static ArrayList<String> readfilehamfull() throws IOException {
 
         ArrayList<String> ham = new ArrayList<>();
 
