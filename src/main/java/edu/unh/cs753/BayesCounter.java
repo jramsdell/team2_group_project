@@ -17,7 +17,7 @@ public class BayesCounter {
     /*
      * Parse the email tokens and make a hash map of hash maps for the class passed as a parameter.
      * Example state of the map after this function: {Spam => ["Viagra", 1000], ["great", 987]}
-     *
+     * This function is for training and should therefore be called on the training set of emails.
      */
     public void buildHashMap(String docClass, List<String> emailTokens) {
 
@@ -28,13 +28,19 @@ public class BayesCounter {
         }
 
         // Initialize the outer map for the document class.
-        HashMap<String, Integer> classMap = new HashMap();
-        bayesMap.put(docClass, classMap);
+        // If a hash map has not yet been initialized for this class, create one.
+        // Otherwise, just grab the one that already exists.
+        if (bayesMap.get(docClass) == null) {
+            HashMap<String, Integer> classMap = new HashMap();
+            bayesMap.put(docClass, classMap);
+        }
+
+        HashMap<String, Integer> curMap = bayesMap.get(docClass);
 
         for (String token : emailTokens) {
 
-            int curCount = classMap.get(token);
-            classMap.put(token, curCount + 1);
+            int curCount = curMap.get(token);
+            curMap.put(token, curCount + 1);
 
         }
 
@@ -43,7 +49,7 @@ public class BayesCounter {
     /*
      * Parse the tokens of the email passed as a parameter and sum the counts of each word.
      * Return the document class with the larger count.
-     *
+     * This function is for evaluation and should therefore be called on the evaluation set of emails.
      */
     public String classify(List<String> tokens) {
 
