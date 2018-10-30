@@ -2,7 +2,7 @@
 
 if [ "$#" -ne 1 ]; then
     echo "Need one and only one parameter (corpus file location)"
-    return 1
+    exit 1
 fi
 
 
