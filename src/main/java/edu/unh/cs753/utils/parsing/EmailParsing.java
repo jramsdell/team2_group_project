@@ -39,7 +39,7 @@ public class EmailParsing {
                 String docID = emailFileLoc.substring(index+1, emailFileLoc.length());
                 List<String> list = getAnalyzedTerms(content);
                 
-                return new EmailContainer(docID, subject, content, list);
+                return new EmailContainer(docID, subject, content, "", list);
             } catch (IOException e) {
                 e.printStackTrace();
             }
