@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if [ "$#" -ne 1 ]; then
+    echo "Need one and only one parameter (corpus file location)"
+    return 1
+fi
+
+
 
 # maven compile command
 mvn clean compile assembly:single
