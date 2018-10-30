@@ -87,14 +87,6 @@ public class EmailParsing {
         }
         return ret;
     }
-            
-                
-            
-            
-            
-        
-        
-    }
 
 
 
