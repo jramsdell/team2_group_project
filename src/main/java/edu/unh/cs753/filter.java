@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 
 public class filter {
@@ -40,9 +42,11 @@ public class filter {
     }
 
 
-    public static ArrayList<String> readfilehamfull() throws IOException {
+    public static Map<String,String> readfilehamfull() throws IOException {
 
-        ArrayList<String> ham = new ArrayList<>();
+   //     ArrayList<String> ham = new ArrayList<>();
+        Map<String,String> ham= new HashMap<>();
+
 
         BufferedReader br1 = new BufferedReader(new FileReader("/Users/abnv/Desktop/trec07p/full/index"));
 
@@ -57,10 +61,11 @@ public class filter {
 
             String splitwords1[] = line1.split(" ");
 
+
             if (splitwords1[0].toLowerCase().equals("ham")) {
+                String inner[]= splitwords1[1].split("/");
 
-
-                ham.add(splitwords1[1]);
+                System.out.println(inner);
             }
 
 
