@@ -13,7 +13,7 @@ public class Main {
 	public static void main(String[] args) throws IOException {
 		System.setProperty("file.encoding", "UTF-8");
 		
-		System.out.println("=======Final project group 2=========");
+		System.out.println("\n\n=======Final project group 2=========");
 
 
 
