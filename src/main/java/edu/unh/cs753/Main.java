@@ -12,16 +12,18 @@ public class Main {
 	// Main class for project
 	public static void main(String[] args) throws IOException {
 		System.setProperty("file.encoding", "UTF-8");
-
-//		String option = args[0];
-//		String path = args[1];
+		
+		System.out.println("=======Final project group 2=========");
 
 
 
 		filter f = new filter();
 
 		//f.readFile();
-
+		
+		
+		
+		System.out.println("======================================");
 	}
 
 }
