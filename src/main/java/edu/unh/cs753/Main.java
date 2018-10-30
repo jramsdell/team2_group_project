@@ -20,7 +20,7 @@ public class Main {
 
 		filter f = new filter();
 
-		f.readFile();
+		//f.readFile();
 
 	}
 
