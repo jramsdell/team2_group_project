@@ -24,6 +24,7 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import java.util.List;
 import java.util.ArrayList;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 
 
 public class EmailParsing {
