@@ -1,6 +1,6 @@
 package edu.unh.cs753.utils.parsing;
 
-//import java.util.List;
+import java.util.List;
 
 public class EmailContainer {
         public String subject;
