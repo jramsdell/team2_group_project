@@ -10,7 +10,7 @@ fi
 
 
 # run the maven jar file (to display results)
-java -jar target/team2_1-1.0-SNAPSHOT-jar-with-dependencies.jar $1 
+java -jar target/team2_group_project-1.0-SNAPSHOT-jar-with-dependencies.jar $1 
 if [ $? -eq 1 ]; then
     echo "Error running jar file"
     exit 1
