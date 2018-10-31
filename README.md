@@ -24,6 +24,7 @@ java -jar target/team2_group_project-1.0-SNAPSHOT-jar-with-dependencies.jar pars
 Where SPAMDIR is the path to the unzipped spam directory (the directory should be called trec07p).
 
 This will create a parsed_emails.tsv file located within the project directory. You will need this for classification.
+Note that you will see a bunch of log messages while this parser is running... ignore those.
 
 ## Classification
 
@@ -32,3 +33,5 @@ You can classify the emails by running the following command while in the projec
 java -jar target/team2_group_project-1.0-SNAPSHOT-jar-with-dependencies.jar classify parsed_emails.tsv
 
 This assumes that you parsed the TREC emails (described in the previous section).
+
+The classifier will print one line per email. The first element in the line represents the true label of the email (spam or ham), while the second element in the line represents the label that the classifier assigned to the email. Finally, the F1-measure is printed after all labels have been printed.
