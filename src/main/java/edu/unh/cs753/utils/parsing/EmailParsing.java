@@ -61,7 +61,19 @@ public class EmailParsing {
     }
 
 
-
+    public static List<EmailContainer> parseCorpus(String corpusLoc) {
+        ArrayList<EmailContainer> ret = new ArrayList<EmailContainer>();
+        File path = new File(corpusLoc);
+        File [] files = path.listFiles();
+        for(int i = 0; i < files.length; i++) {
+            if(files[i].isFile()) { 
+                String filename = files[i].toString();
+                //EmailContainer ec = createEmailContainer(filename);
+                //ret.add(ec);
+            }
+        }
+        return ret;
+    }
 
 
 }
