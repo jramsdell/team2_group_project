@@ -1,5 +1,8 @@
 package edu.unh.cs753;
 
+import evaluation.KotlinEmailParser;
+import evaluation.KotlinNaiveBayesTrainer;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -12,18 +15,17 @@ public class Main {
 	// Main class for project
 	public static void main(String[] args) throws IOException {
 		System.setProperty("file.encoding", "UTF-8");
-		
-		System.out.println("\n\n=======Final project group 2=========");
 
+		String option = args[0];
+		String path = args[1];
 
+		if (option.equals("parse")) {
+			KotlinEmailParser.INSTANCE.parseEmails(path);
+		} else if (option.equals("classify")) {
+			KotlinNaiveBayesTrainer trainer = new KotlinNaiveBayesTrainer();
+			trainer.doTrain(path);
+		}
 
-		filter f = new filter();
-
-		//f.readFile();
-		
-		
-		
-		System.out.println("======================================");
 	}
 
 }

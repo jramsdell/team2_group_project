@@ -38,6 +38,9 @@ public class BayesCounter {
         HashMap<String, Integer> curMap = bayesMap.get(docClass);
 
         for (String token : emailTokens) {
+            if (!curMap.containsKey(token)) {
+                curMap.put(token, 0);
+            }
 
             int curCount = curMap.get(token);
             curMap.put(token, curCount + 1);
@@ -60,15 +63,15 @@ public class BayesCounter {
         double spamScore = 0;
 
         for (String token : tokens) {
-            spamScore += Math.log(spamDist.get(token));
-            hamScore += Math.log(hamDist.get(token));
+            spamScore += Math.log(spamDist.getOrDefault(token, 1));
+            hamScore += Math.log(hamDist.getOrDefault(token, 1));
         }
 
         if (hamScore > spamScore) {
-            return "Ham";
+            return "ham";
         }
         else {
-            return "Spam";
+            return "spam";
         }
     }
 

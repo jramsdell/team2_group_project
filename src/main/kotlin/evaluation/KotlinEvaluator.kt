@@ -12,7 +12,8 @@ class KotlinEvaluator( val correctLabels: Map<String, String> ) {
         var fp = 0
 
         calledLabels.forEach { (id, label) ->
-            val correctLabel = calledLabels[id]!!
+            val correctLabel = correctLabels[id]!!
+            println("$correctLabel\t$label")
             val isSpam = correctLabel == "spam"
 
             if (isSpam && label == "spam") { tp += 1 }
