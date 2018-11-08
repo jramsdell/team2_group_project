@@ -2,6 +2,7 @@ package edu.unh.cs753;
 
 import evaluation.KotlinEmailParser;
 import evaluation.KotlinNaiveBayesTrainer;
+import evaluation.KotlinTrainingEmailIndexer;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -21,6 +22,8 @@ public class Main {
 
 		if (option.equals("parse")) {
 			KotlinEmailParser.INSTANCE.parseEmails(path);
+		} else if (option.equals("index")) {
+			KotlinTrainingEmailIndexer.INSTANCE.createIndex(path, "index");
 		} else if (option.equals("classify")) {
 			KotlinNaiveBayesTrainer trainer = new KotlinNaiveBayesTrainer();
 			trainer.doTrain(path);

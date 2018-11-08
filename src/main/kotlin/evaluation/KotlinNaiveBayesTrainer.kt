@@ -60,6 +60,8 @@ class KotlinNaiveBayesTrainer() {
     fun doTrain(tsvLoc: String) {
         val emails = KotlinEmailParser.readEmailTsv(tsvLoc)
         val (train, test) = KotlinEmailParser.createTestTrainData(emails, 0.5)
+        println(train.size)
+        println(test.size)
 
         train.forEach { email ->
             bayesCounter.buildHashMap(email.label, email.tokens)
@@ -98,9 +100,11 @@ private fun createTokenList(text: String, analyzer: Analyzer): ArrayList<String>
 fun main(args: Array<String>) {
     val spamLoc = "/home/hcgs/data_science/data/spam/trec07p"
     val tsvLoc = "/home/hcgs/Desktop/projects/assignments/team2_group_project/parsed_emails.tsv"
-    val emails = KotlinEmailParser.readEmailTsv(tsvLoc)
-    val (train, test) = KotlinEmailParser.createTestTrainData(emails, 0.5)
+//    val emails = KotlinEmailParser.readEmailTsv(tsvLoc)
+    KotlinNaiveBayesTrainer().doTrain(tsvLoc)
+//    val (train, test) = KotlinEmailParser.createTestTrainData(emails, 0.5)
 
-    val trainer = KotlinNaiveBayesTrainer()
+
+//    val trainer = KotlinNaiveBayesTrainer()
 //    trainer.doTrain(train, test)
 }
