@@ -12,7 +12,7 @@ public class DebugHelper {
 
         // NOTE: you must change spamEmailDirectory to point to the spam directory on your laptop
         // Make SURE that the spam directory is unzipped
-        String spamEmailDirectory = "/home/hcgs/data_science/data/spam"; // replace this path!
+        String spamEmailDirectory = "/Ph.D/IR/GroupProject/Data/trec07p/"; // replace this path!
         KotlinEmailParser.INSTANCE.parseEmails(spamEmailDirectory);
     }
 
