@@ -8,7 +8,7 @@ public class BayesCounter {
     /*
      * Makes a new BayesCounter with empty hash map.
      */
-    private final HashMap<String, HashMap<String, Integer>> bayesMap;
+    public final HashMap<String, HashMap<String, Integer>> bayesMap;
 
     public BayesCounter() {
         bayesMap = new HashMap<>();
