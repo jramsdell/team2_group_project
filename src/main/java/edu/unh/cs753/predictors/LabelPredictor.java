@@ -109,7 +109,13 @@ abstract public class LabelPredictor {
      *
      */
     public void evaluate() {
-        KotlinEvaluator.Companion.evaluate(this);
+        KotlinEvaluator.Companion.evaluate(this, -1);
+    }
+
+
+    // Variation where you only look at the first nEvals number of unknown emails
+    public void evaluate(Integer nEvals) {
+        KotlinEvaluator.Companion.evaluate(this, nEvals);
     }
 
 

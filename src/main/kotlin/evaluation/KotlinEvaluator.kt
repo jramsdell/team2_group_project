@@ -2,6 +2,7 @@ package evaluation
 
 import edu.unh.cs753.predictors.LabelPredictor
 import java.io.File
+import java.util.*
 
 
 class KotlinEvaluator( val correctLabels: Map<String, String> ) {
@@ -42,9 +43,13 @@ class KotlinEvaluator( val correctLabels: Map<String, String> ) {
                 .toMap()
 
 
-        fun evaluate(lp: LabelPredictor)  {
+        fun evaluate(lp: LabelPredictor, nEvals: Int = -1)  {
             val emails = KotlinEmailParser.readEmailTsv("parsed_emails.tsv")
-            val (_, test) = KotlinEmailParser.createTestTrainData(emails, 0.5)
+            val test = kotlin.run {
+                val (_, testy) = KotlinEmailParser.createTestTrainData(emails, 0.5)
+                if (nEvals == -1) testy else testy.shuffled(Random(123)).take(nEvals)
+            }
+
 
 
             val calledLabels = test.map { email ->
