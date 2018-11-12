@@ -27,6 +27,9 @@ public class Main {
 		} else if (option.equals("classify")) {
 			KotlinNaiveBayesTrainer trainer = new KotlinNaiveBayesTrainer();
 			trainer.doTrain(path);
+		} else if (option.equals("tree")) {
+			DecisionTree tree = new DecisionTree(path);
+			// ...
 		}
 
 	}
