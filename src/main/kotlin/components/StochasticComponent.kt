@@ -34,7 +34,7 @@ class StochasticComponent(val basisVectors: List<EmailSparseVector>,
 
         val spamDist = createNormalDist(weights, spamVectors)
         val hamDist = createNormalDist(weights, hamVectors)
-        val vBad = spamDist.sample(100)
+        val vBad = spamDist.sample(10)
             .map { 1.0 - hamDist.getInvDist(it) }
             .average()
 
