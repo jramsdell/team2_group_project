@@ -20,6 +20,8 @@ public class DecisionTree {
 	
     
     public DecisionTree(String path) {
+	    
+	System.out.println("Decision tree (path) " + path);
         
         ArffLoader loader= new ArffLoader();
         // TODO: how to gather informtion for the arff file
