@@ -2,31 +2,65 @@ package components
 
 import containers.EmailSparseVector
 import kernels.SimilarityFuns
+import learning.GhettoKDTree
 import learning.stochastic.StochasticDescent
+import org.apache.commons.math3.distribution.NormalDistribution
+import kotlin.math.absoluteValue
+import kotlin.math.pow
 
 class StochasticComponent(val basisVectors: List<EmailSparseVector>,
                           trainingVectors: List<EmailSparseVector>,
                           val trainingVectorComponent: TrainingVectorComponent) {
     val spamVectors = trainingVectors.filter { it.label == "spam" }
     val hamVectors = trainingVectors.filter { it.label == "ham" }
+    val ghettoTree = GhettoKDTree(trainingVectorComponent)
 
 
 
     fun getAverageDist(weights: List<Double>): Double {
-        val vBad = spamVectors.map { sv ->
-            hamVectors.map { hv ->
-                SimilarityFuns.simComponentL1DistWeights(hv, sv, weights)
-            }.min()!!
-        }.average()!!
+        val dots = (spamVectors + hamVectors).map { it to SimilarityFuns.dotProduct(it, weights) }.toMap()
 
-        val vBad2 = hamVectors.map { sv ->
-            spamVectors.map { hv ->
-                SimilarityFuns.simComponentL1DistWeights(hv, sv, weights)
-            }.min()!!
-        }.average()!!
+//        val vBad = spamVectors.map { sv ->
+////            val svBase = SimilarityFuns.dotProduct(sv, weights)
+//            val svBase = dots[sv]!!
+//            hamVectors.map { hv ->
+////                Math.log(SimilarityFuns.simComponentL2DistWeights(hv, sv, weights)).run { if(isFinite()) this else -1.0 }
+////                if (svBase > SimilarityFuns.dotProduct(hv, weights)) 1.0 else 0.0
+//                if (svBase > dots[hv]!!) 1.0 else 0.0
+////                svBase - dots[hv]!!
+////                if (svBase > dots[hv]!!) 1.0 else 0.0
+//            }.sum()
+//        }.sum()
+
+        val spamDist = createNormalDist(weights, spamVectors)
+        val hamDist = createNormalDist(weights, hamVectors)
+        val vBad = spamDist.sample(100)
+            .map { 1.0 - hamDist.getInvDist(it) }
+            .average()
+
+//        val vGood = hamVectors.map { hv ->
+//            val hvBase = dots[hv]!!
+//            spamVectors.map { sv ->
+//                //                Math.log(SimilarityFuns.simComponentL2DistWeights(hv, sv, weights)).run { if(isFinite()) this else -1.0 }
+//                if (hvBase < dots[sv]!!) 1.0 else 0.0
+//            }.sum()
+//        }.sum()
+
+//        val vBad2 = hamVectors.map { sv ->
+//            spamVectors.map { hv ->
+//                SimilarityFuns.simComponentL1DistWeights(hv, sv, weights)
+//            }.min()!!
+//        }.average()!!
 
 
-        return vBad * vBad2
+        return vBad
+    }
+
+    fun NormalDistribution.getInvDist(point: Double): Double {
+        val dist = (point - mean).absoluteValue
+        val p1 = probability(mean - dist, mean + dist)
+//    val p2 = probability(mean - dist, mean)
+        return 1.0 - p1
     }
 
     fun getLinearDiscriminant(weights: List<Double>): Double {
@@ -69,18 +103,43 @@ class StochasticComponent(val basisVectors: List<EmailSparseVector>,
     }
 
     fun getKNN(weights: List<Double>): Double {
-        return trainingVectorComponent.getF1(knnLabeler(weights, trainingVectorComponent.holdout))
+//        return trainingVectorComponent.getF1(knnLabeler(weights, trainingVectorComponent.holdout))
+        return trainingVectorComponent.getF1(myLabeler(weights, trainingVectorComponent.holdout))
     }
 
 
     fun doTrain() {
 //        val descender = StochasticDescent(basisVectors.size, this::getAverageDist, onlyPos = false)
-        val descender = StochasticDescent(basisVectors.size, this::getKNN, onlyPos = true)
-        descender.search()
+        val descender = StochasticDescent(basisVectors.size, this::getAverageDist, onlyPos = false, useDist = false)
+        descender.search({weights -> println(getKNN(weights)) })
 //        descender.search { weights ->
 //            val score = trainingVectorComponent.getF1(knnLabeler(weights, trainingVectorComponent.holdout))
 //            println("WEEE: $score")
 //        }
+    }
+
+    fun createNormalDist(weights: List<Double>, vectors: List<EmailSparseVector>): NormalDistribution {
+        val scores = vectors.map { SimilarityFuns.dotProduct(it, weights) }
+        val average = scores.average()
+        val variance = scores.map { (average - it).pow(2.0) }.sum()
+        return NormalDistribution(average, variance.pow(0.5))
+    }
+
+    fun myLabeler(weights: List<Double>, vectors: List<EmailSparseVector>) = { e: EmailSparseVector ->
+//        val avHam = hamVectors.map { SimilarityFuns.dotProduct(it, weights) }.average()
+        val distHam = createNormalDist(weights, hamVectors)
+//        val avSpam = spamVectors.map { SimilarityFuns.dotProduct(it, weights) }.average()
+        val distSpam = createNormalDist(weights, spamVectors)
+        val point = SimilarityFuns.dotProduct(e, weights)
+
+
+//        if ((point - avHam).absoluteValue < (point - avSpam).absoluteValue) "ham" else "spam"
+        if (distSpam.getInvDist(point) > distHam.getInvDist(point)) "spam" else "ham"
+//        ghettoTree.retrieveCandidates(e, weights, 5)
+//            .map { it.label }
+//            .groupingBy { it }
+//            .eachCount()
+//            .maxBy { it.value }!!.key
     }
 
 }

@@ -73,25 +73,46 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
     private fun train() {
         val nDocs = searcher.indexReader.numDocs()
 //        val randomDocs = (0 until nDocs).shuffled(Random(21)).take(20)
-        val randomDocs = (0 until nDocs).shuffled(Random(21)).take(5000)
+        var nElements = 1000
+        val nBases = 10
+        val randomDocs = (0 until nDocs).shuffled(Random(21)).take(nElements)
             .map(this::extractEmail)
-            .filter { it.components.values.sum() > 200 }
-            .take(20)
+            .filter { it.components.size > 0}
+
+        nElements = randomDocs.size
+
+        randomDocs
+            .take(nBases)
             .mapTo(basisVectors) { it }
+
+        val split = randomDocs.drop(nBases)
+            .map { embed(it) }
 
 
 //        randomDocs.mapTo(basisVectors) { docId -> extractEmail(docId) }
 //        basisVectors.addAll(findOrthogonal())
-        val split = (0 until nDocs).shuffled(Random(10)).take(20000)
-            .map {  docId ->
-                val email = extractEmail(docId)
-                embed(email) }
+//        val nElements = 2000
+//        val split = (0 until nDocs)
+//            .shuffled(Random(10)).take(nElements)
+//            .map {  docId ->
+//                val email = extractEmail(docId)
+//                embed(email) }
+//            .run {
+//                basisVectors.clear()
+//                take(20)
+//                    .mapTo(basisVectors) { it }
+//
+//            this.drop(20)
+//                    .map { embed2(it) }
+//            }
 
-//        split.take(4000)
-//            .mapTo(vectors) {it}
-        split
+
+
+        split.take((nElements - nBases) / 2)
             .mapTo(vectors) {it}
-        split.drop(4000)
+//        split
+//            .mapTo(vectors) {it}
+        split.drop((nElements - nBases) / 2)
             .mapTo(holdout) {it}
 
 
@@ -109,27 +130,46 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
     private fun extractEmail(docId: Int): EmailSparseVector  {
         val doc = searcher.doc(docId)
         val label = doc.get("label")
+        val id = doc.get("id")
 
         // Create frequency dist of tokens
         val dist = doc.get("text")
             .split(" ")
+            .flatMap { createTriCharGrams(it) }
             .groupingBy { it }
             .eachCount()
             .map { it.key to it.value.toDouble() }
             .toMap()
 
-        return EmailSparseVector(label = label, components = dist)
+        return EmailSparseVector(label = label, components = dist, id = id)
     }
+
+    fun createTriCharGrams(token: String) =
+        token.windowed(3, 1, false)
+
 
     fun embed(v: EmailSparseVector): EmailSparseVector {
         val transformedComponents = basisVectors.mapIndexed { index, basis ->
             val key = index.toString()
-            val result = SimilarityFuns.simComponentCosine(v, basis)
-//            val result = kernel.sim(v, basis)
+//            val result = SimilarityFuns.simOverlap(v, basis)
+//            val result = SimilarityFuns.sim(v, basis)
+            val result = kernel.sim(v, basis)
+//            val result = SimilarityFuns.simComponentCosine(v, basis)
+//            println(result)
             key to result
         }.toMap()
 
-        return EmailSparseVector(label = v.label, components = transformedComponents)
+        return EmailSparseVector(label = v.label, components = transformedComponents, id = v.id)
+    }
+
+    fun embed2(v: EmailSparseVector): EmailSparseVector {
+        val transformedComponents = basisVectors.mapIndexed { index, basis ->
+            val key = index.toString()
+            val result = SimilarityFuns.simComponentL2Dist(v, basis)
+            key to result
+        }.toMap()
+
+        return EmailSparseVector(label = v.label, components = transformedComponents, id = v.id)
     }
 
 }

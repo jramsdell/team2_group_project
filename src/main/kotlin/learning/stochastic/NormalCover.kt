@@ -8,8 +8,8 @@ open class NormalCover : Cover<Ball>() {
 
     override fun createBalls() {
         (0 until 40).map { index ->
-            val loc = index * 0.025
-//            val loc = Math.random() - 0.5
+//            val loc = index * 0.025
+            val loc = (Math.random() - 0.5) * 10.0
 //            val loc = Math.random()
             balls.add(Ball(location = loc))
         }

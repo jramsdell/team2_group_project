@@ -3,6 +3,7 @@ package learning.training
 import components.StochasticComponent
 import components.TrainingVectorComponent
 import edu.unh.cs753.utils.SearchUtils
+import learning.GhettoKDTree
 import org.apache.lucene.search.IndexSearcher
 
 

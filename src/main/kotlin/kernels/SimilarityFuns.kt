@@ -55,6 +55,15 @@ object SimilarityFuns {
         }.pow(0.5)
     }
 
+    fun simComponentL2DistWeights(v1: EmailSparseVector, v2: EmailSparseVector, weights: List<Double>): Double {
+        val keys = v1.components.keys.union(v2.components.keys)
+        return keys.sumByDouble { key ->
+            val v1Component = v1.components[key] ?: 0.0
+            val v2Component = v2.components[key] ?: 0.0
+            (v1Component - v2Component).pow(2.0) * weights[key.toInt()]
+        }.pow(0.5)
+    }
+
     fun simComponentCosine(v1: EmailSparseVector, v2: EmailSparseVector): Double {
         val keys = v1.components.keys.union(v2.components.keys)
         val dotProduct =  keys.sumByDouble { key ->

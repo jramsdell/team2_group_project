@@ -12,7 +12,7 @@ import kotlin.math.pow
 import kotlin.math.sign
 
 
-class StochasticDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, val onlyPos: Boolean = false) {
+class StochasticDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, val onlyPos: Boolean = false, val useDist: Boolean = true) {
     val covers = (0 until nFeatures).map { NormalCover().apply { createBalls() } }
 
     val nCandidates = 10
@@ -34,7 +34,9 @@ class StochasticDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Doub
     }
 
     fun runStep() {
-        (0 until 200).forEach {
+        (0 until 60).forEach {
+            if (it % 10 == 0)
+                println(it)
             val balls=  getBalls()
 //            val weights = balls.mapIndexed { index, ball ->
 //                ball.getParam().run { if (onlyPos && this < 0.0) 0.0 else this }
@@ -42,7 +44,7 @@ class StochasticDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Doub
 
             val weights = balls.mapIndexed { index, ball ->
                 ball.getParam().run { if (onlyPos && this < 0.0) 0.0 else this }
-            }
+            }.run { if (useDist) normalize() else this }
             val map = scoreFun(weights)
 
             val bestAv = bestMap.average()
