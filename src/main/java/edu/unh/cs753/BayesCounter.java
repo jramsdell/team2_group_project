@@ -201,4 +201,67 @@ public class BayesCounter {
         }
     }
 
+    /*
+     * Parse the email tokens and make a hash map of hash maps for the class passed as a parameter.
+     * Example state of the map after this function: {Spam => ["orderviagra", 1000], ["viagratoday", 987]}
+     * This function is for evaluation and should therefore be called on the evaluation set of emails.
+     */
+    public void buildQuadgramsHashMap(String docClass, List<String> emailTokens) {
+
+        // Verify that the first parameter is valid
+        if (!(docClass.equals("ham")) && !(docClass.equals("spam"))) {
+            System.out.print("Error: Invalid class type. \n Options: 'spam, 'ham' ");
+            return;
+        }
+
+        // Initialize the outer map for the document class.
+        // If a hash map has not yet been initialized for this class, create one.
+        // Otherwise, just grab the one that already exists.
+        if (bayesMap.get(docClass) == null) {
+            HashMap<String, Integer> classMap = new HashMap();
+            bayesMap.put(docClass, classMap);
+        }
+
+        HashMap<String, Integer> curMap = bayesMap.get(docClass);
+
+        for (int i = 0; i < emailTokens.size() - 2; i++) {
+            String quadgram = emailTokens.get(i) + emailTokens.get(i + 1) + emailTokens.get(i + 2);
+            if (!curMap.containsKey(quadgram)) {
+                curMap.put(quadgram, 0);
+            }
+
+            int curCount = curMap.get(quadgram);
+            curMap.put(quadgram, curCount + 1);
+
+        }
+
+    }
+
+    /*
+     * Parse the tokens of the email passed as a parameter and sum the counts of each word.
+     * Return the document class with the larger count.
+     * This function is for evaluation and should therefore be called on the evaluation set of emails.
+     */
+    public String classifyWithQuadgrams(List<String> tokens) {
+
+        HashMap<String, Integer> spamDist = bayesMap.get("spam");
+        HashMap<String, Integer> hamDist = bayesMap.get("ham");
+
+        double hamScore = 0;
+        double spamScore = 0;
+
+        for (int i = 0; i < tokens.size() - 2; i++) {
+            String quadgram = tokens.get(i) + tokens.get(i + 1) + tokens.get(i + 2);
+            spamScore += Math.log(spamDist.getOrDefault(quadgram, 1));
+            hamScore += Math.log(hamDist.getOrDefault(quadgram, 1));
+        }
+
+        if (hamScore > spamScore) {
+            return "ham";
+        }
+        else {
+            return "spam";
+        }
+    }
+
 }
