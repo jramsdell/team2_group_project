@@ -13,7 +13,7 @@ public class KnnPredictor extends LabelPredictor {
 
     private BayesCounter bc = new BayesCounter();
     private HashMap<String, Double> unknownEmailTokens = new HashMap<>();
-    private ArrayList<Tuple> distances = new ArrayList<>();
+    private Tuple [] distances = new Tuple [100000];
 
     private KnnPredictor(IndexSearcher s) {
         super(s);
@@ -41,10 +41,10 @@ public class KnnPredictor extends LabelPredictor {
         int hamScore = 0;
         int spamScore = 0;
 
-        getDistances(spamDist, hamDist);
+        int num = getDistances(spamDist, hamDist);
 
         for (int i = 0; i < k; i++) {
-            al.add(getMinimum());
+            al.add(getMinimum(num));
         }
 
         for (int i = 0; i < k; i++) {
@@ -70,13 +70,13 @@ public class KnnPredictor extends LabelPredictor {
      * Utility function to get the lowest Euclidian distance that was calculated
      * and has not yet been added to the list of k nearest neighbors.
      */
-    private Tuple getMinimum() {
+    private Tuple getMinimum(int num) {
 
-        Tuple t = distances.get(0);
+        Tuple t = distances[0];
         Tuple retTuple = t;
         double min = t.score;
-        for (int i = 1; i < distances.size(); i++) {
-            t = distances.get(i);
+        for (int i = 1; i < num; i++) {
+            t = distances[i];
             if (t.score < min && !t.flag) {
                 min = t.score;
                 retTuple = t;
@@ -92,20 +92,23 @@ public class KnnPredictor extends LabelPredictor {
      * Calculate the Euclidian distance between each point of
      * training data and each point of test data.
      */
-    private void getDistances(HashMap<String, Integer> spamDist, HashMap<String, Integer> hamDist) {
+    private int getDistances(HashMap<String, Integer> spamDist, HashMap<String, Integer> hamDist) {
 
+        int index = 0;
         for (String token: unknownEmailTokens.keySet()) {
             if (spamDist.get(token) != null) {
                 double dist = Math.log(Math.sqrt(Math.pow(unknownEmailTokens.get(token) - spamDist.get(token), 2)));
                 Tuple t = new Tuple(dist, "spam", false);
-                distances.add(t);
+                distances[index] = t;
+                index++;
             }
             if (hamDist.get(token) != null) {
                 double dist = Math.log(Math.sqrt(Math.pow(unknownEmailTokens.get(token) - hamDist.get(token), 2)));
                 Tuple t = new Tuple(dist, "ham", false);
-                distances.add(t);
+                distances[index] = t;
             }
         }
+        return index;
     }
 
     /*
