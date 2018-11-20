@@ -14,6 +14,7 @@ public class KnnPredictor extends LabelPredictor {
     private double hamCount = 0;
     private double spamCount = 0;
     private HashMap<String, Double> unknownEmailTokens = new HashMap<>();
+    Tuple [] distances = new Tuple[10000000];
 
     public KnnPredictor(IndexSearcher s) {
         super(s);
@@ -43,10 +44,10 @@ public class KnnPredictor extends LabelPredictor {
         int hamScore = 0;
         int spamScore = 0;
 
-        Tuple [] distances = getDistances(spamDist, hamDist);
+        int stop = getDistances(spamDist, hamDist);
 
         // Sort the list for easy access of top k results
-        quickSort(distances, 0, distances.length - 1);
+        quickSort(0, stop - 1);
 
         // Keep track of the classes for the top k elements
         for (int i = 0; i < k; i++) {
@@ -72,15 +73,16 @@ public class KnnPredictor extends LabelPredictor {
     /*
      * Custom implementation of the quick sort algorithm to sort the list of Tuples.
      */
-    public int Partition(Tuple [] distances, int start, int stop) {
+    public int Partition(int start, int stop) {
 
-        Tuple t = distances[stop];
-        double pivot = t.score; // this is why I need an arraylist...
+        Tuple t = distances[stop - 1];
+        System.out.println(t);
+        double pivot = t.score;
         int i = start - 1;
 
         for (int j = 0; j < pivot; j++) {
-            t = distances[j];
-            if (t.score <= pivot) {
+            Tuple nt = distances[j];
+            if (nt.score <= pivot) {
                 i++;
                 Tuple temp = distances[i];
                 distances[i] = distances[j];
@@ -95,14 +97,14 @@ public class KnnPredictor extends LabelPredictor {
         return i + 1;
     }
 
-    public void quickSort(Tuple [] distances, int start, int stop) {
+    public void quickSort(int start, int stop) {
 
         if (start < stop) {
 
-            int partition = Partition(distances, start, stop);
+            int partition = Partition(start, stop);
 
-            quickSort(distances, start, stop - 1);
-            quickSort(distances, partition, stop);
+            quickSort(start, stop - 1);
+            quickSort(partition, stop);
 
         }
     }
@@ -110,24 +112,24 @@ public class KnnPredictor extends LabelPredictor {
     /*
      * Calculate the Euclidian distance between each point of training data and each point of test data.
      */
-    public Tuple[] getDistances(HashMap<String, Integer> spamDist, HashMap<String, Integer> hamDist) {
-
-        Tuple [] distances = new Tuple[10000000];
+    public int getDistances(HashMap<String, Integer> spamDist, HashMap<String, Integer> hamDist) {
 
         int index = 0;
         for (String token: unknownEmailTokens.keySet()) {
             if (spamDist.get(token) != null) {
                 double dist = Math.log(Math.sqrt(Math.pow(unknownEmailTokens.get(token) - spamDist.get(token), 2)));
-                distances[index] = new Tuple(dist, "spam");
+                Tuple t = new Tuple(dist, "spam");
+                distances[index] = t;
                 index++;
             }
             if (hamDist.get(token) != null) {
                 double dist = Math.log(Math.sqrt(Math.pow(unknownEmailTokens.get(token) - hamDist.get(token), 2)));
-                distances[index + 1] = new Tuple(dist, "ham");
+                Tuple t = new Tuple(dist, "ham");
+                distances[index] = t;
                 index++;
             }
         }
-        return distances;
+        return index;
     }
 
     public void getUnknownTokens(List<String> tokens) {
