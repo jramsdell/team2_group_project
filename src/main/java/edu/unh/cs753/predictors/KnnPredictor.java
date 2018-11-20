@@ -5,30 +5,27 @@ import edu.unh.cs753.utils.SearchUtils;
 import org.apache.lucene.search.IndexSearcher;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
 public class KnnPredictor extends LabelPredictor {
 
     private BayesCounter bc = new BayesCounter();
-    private double hamCount = 0;
-    private double spamCount = 0;
     private HashMap<String, Double> unknownEmailTokens = new HashMap<>();
-    Tuple [] distances = new Tuple[10000000];
+    private ArrayList<Tuple> distances = new ArrayList<>();
 
-    public KnnPredictor(IndexSearcher s) {
+    private KnnPredictor(IndexSearcher s) {
         super(s);
 
         // Train classifier on ham emails
         for(List<String> tokens : retrieveHamEmailTokens()) {
             bc.buildHashMap("ham", tokens);
-            hamCount += 1;
         }
 
         // Train classifier on spam emails
         for(List<String> tokens : retrieveSpamEmailTokens()) {
             bc.buildHashMap("spam", tokens);
-            spamCount += 1;
         }
     }
 
@@ -38,29 +35,28 @@ public class KnnPredictor extends LabelPredictor {
         HashMap<String, Integer> spamDist = bc.bayesMap.get("spam");
         HashMap<String, Integer> hamDist = bc.bayesMap.get("ham");
         getUnknownTokens(tokens);
+        ArrayList<Tuple> al = new ArrayList<>();
 
-        // 1. Initialize the value of k
         int k = 3;
         int hamScore = 0;
         int spamScore = 0;
 
-        int stop = getDistances(spamDist, hamDist);
+        getDistances(spamDist, hamDist);
 
-        // Sort the list for easy access of top k results
-        quickSort(0, stop - 1);
-
-        // Keep track of the classes for the top k elements
         for (int i = 0; i < k; i++) {
-            Tuple t = distances[i];
-            if (t.label.equals("ham")) {
-                hamScore++;
+            al.add(getMinimum());
+        }
+
+        for (int i = 0; i < k; i++) {
+            Tuple t = al.get(i);
+            if (t.label.equals("spam")) {
+                spamScore++;
             }
             else {
-                spamScore++;
+                hamScore++;
             }
         }
 
-        // Get the most frequent class of the top k rows and return the predicted class.
         if (hamScore > spamScore) {
             return "ham";
         }
@@ -71,68 +67,52 @@ public class KnnPredictor extends LabelPredictor {
     }
 
     /*
-     * Custom implementation of the quick sort algorithm to sort the list of Tuples.
+     * Utility function to get the lowest Euclidian distance that was calculated
+     * and has not yet been added to the list of k nearest neighbors.
      */
-    public int Partition(int start, int stop) {
+    private Tuple getMinimum() {
 
-        Tuple t = distances[stop - 1];
-        System.out.println(t);
-        double pivot = t.score;
-        int i = start - 1;
-
-        for (int j = 0; j < pivot; j++) {
-            Tuple nt = distances[j];
-            if (nt.score <= pivot) {
-                i++;
-                Tuple temp = distances[i];
-                distances[i] = distances[j];
-                distances[j] = temp;
+        Tuple t = distances.get(0);
+        Tuple retTuple = t;
+        double min = t.score;
+        for (int i = 1; i < distances.size(); i++) {
+            t = distances.get(i);
+            if (t.score < min && !t.flag) {
+                min = t.score;
+                retTuple = t;
+                // Set the flag to true so we don't return the same tuple
+                // when the function is called again.
+                t.flag = true;
             }
         }
-
-        Tuple temp = distances[i + 1];
-        distances[i + 1] = distances[distances.length - 1];
-        distances[distances.length - 1] = temp;
-
-        return i + 1;
+        return retTuple;
     }
 
-    public void quickSort(int start, int stop) {
+    /*
+     * Calculate the Euclidian distance between each point of
+     * training data and each point of test data.
+     */
+    private void getDistances(HashMap<String, Integer> spamDist, HashMap<String, Integer> hamDist) {
 
-        if (start < stop) {
-
-            int partition = Partition(start, stop);
-
-            quickSort(start, stop - 1);
-            quickSort(partition, stop);
-
+        for (String token: unknownEmailTokens.keySet()) {
+            if (spamDist.get(token) != null) {
+                double dist = Math.log(Math.sqrt(Math.pow(unknownEmailTokens.get(token) - spamDist.get(token), 2)));
+                Tuple t = new Tuple(dist, "spam", false);
+                distances.add(t);
+            }
+            if (hamDist.get(token) != null) {
+                double dist = Math.log(Math.sqrt(Math.pow(unknownEmailTokens.get(token) - hamDist.get(token), 2)));
+                Tuple t = new Tuple(dist, "ham", false);
+                distances.add(t);
+            }
         }
     }
 
     /*
-     * Calculate the Euclidian distance between each point of training data and each point of test data.
+     * Parse the email tokens and store in a HashMap for
+     * easy lookup.
      */
-    public int getDistances(HashMap<String, Integer> spamDist, HashMap<String, Integer> hamDist) {
-
-        int index = 0;
-        for (String token: unknownEmailTokens.keySet()) {
-            if (spamDist.get(token) != null) {
-                double dist = Math.log(Math.sqrt(Math.pow(unknownEmailTokens.get(token) - spamDist.get(token), 2)));
-                Tuple t = new Tuple(dist, "spam");
-                distances[index] = t;
-                index++;
-            }
-            if (hamDist.get(token) != null) {
-                double dist = Math.log(Math.sqrt(Math.pow(unknownEmailTokens.get(token) - hamDist.get(token), 2)));
-                Tuple t = new Tuple(dist, "ham");
-                distances[index] = t;
-                index++;
-            }
-        }
-        return index;
-    }
-
-    public void getUnknownTokens(List<String> tokens) {
+    private void getUnknownTokens(List<String> tokens) {
         for (String token: tokens) {
             if (!unknownEmailTokens.containsKey(token)) {
                 unknownEmailTokens.put(token, 0.0);
@@ -150,10 +130,12 @@ public class KnnPredictor extends LabelPredictor {
 
         double score;
         String label;
+        boolean flag;
 
-        Tuple(double s, String l) {
+        Tuple(double s, String l, boolean f) {
             this.score = s;
             this.label = l;
+            this.flag = f;
         }
 
     }
