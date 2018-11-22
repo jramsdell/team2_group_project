@@ -13,7 +13,7 @@ public class KnnPredictor extends LabelPredictor {
 
     private BayesCounter bc = new BayesCounter();
     private HashMap<String, Double> unknownEmailTokens = new HashMap<>();
-    private Tuple [] distances = new Tuple [100000];
+    private Tuple [] distances = new Tuple [10000000];
 
     private KnnPredictor(IndexSearcher s) {
         super(s);
@@ -44,6 +44,7 @@ public class KnnPredictor extends LabelPredictor {
         int num = getDistances(spamDist, hamDist);
 
         for (int i = 0; i < k; i++) {
+            //System.out.println("    i: " + i);
             al.add(getMinimum(num));
         }
 
@@ -51,9 +52,11 @@ public class KnnPredictor extends LabelPredictor {
             Tuple t = al.get(i);
             if (t.label.equals("spam")) {
                 spamScore++;
+                //System.out.println("spamScore: " + spamScore);
             }
             else {
                 hamScore++;
+                //System.out.println("hamScore: " + hamScore);
             }
         }
 
@@ -79,6 +82,7 @@ public class KnnPredictor extends LabelPredictor {
             t = distances[i];
             if (t.score < min && !t.flag) {
                 min = t.score;
+                //System.out.println(min);
                 retTuple = t;
                 // Set the flag to true so we don't return the same tuple
                 // when the function is called again.
@@ -97,15 +101,18 @@ public class KnnPredictor extends LabelPredictor {
         int index = 0;
         for (String token: unknownEmailTokens.keySet()) {
             if (spamDist.get(token) != null) {
-                double dist = Math.log(Math.sqrt(Math.pow(unknownEmailTokens.get(token) - spamDist.get(token), 2)));
+                double dist = Math.sqrt(Math.pow((unknownEmailTokens.get(token) - spamDist.get(token)), 2.0));
+                //System.out.println("spamDist: " + dist);
                 Tuple t = new Tuple(dist, "spam", false);
                 distances[index] = t;
                 index++;
             }
             if (hamDist.get(token) != null) {
-                double dist = Math.log(Math.sqrt(Math.pow(unknownEmailTokens.get(token) - hamDist.get(token), 2)));
+                double dist = Math.sqrt(Math.pow((unknownEmailTokens.get(token) - hamDist.get(token)), 2.0));
+                //System.out.println("hamDist: " + dist);
                 Tuple t = new Tuple(dist, "ham", false);
                 distances[index] = t;
+                index++;
             }
         }
         return index;
@@ -122,7 +129,7 @@ public class KnnPredictor extends LabelPredictor {
             }
 
             double curCount = unknownEmailTokens.get(token);
-            unknownEmailTokens.put(token, curCount + 1);
+            unknownEmailTokens.put(token, curCount + 1.0);
         }
     }
 
