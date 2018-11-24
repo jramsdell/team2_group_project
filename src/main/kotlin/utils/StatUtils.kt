@@ -60,10 +60,10 @@ fun <A, B: Number>Map<A, B>.normalizeMinMax(): Map<A, Double> {
     return mapValues { (it.value.toDouble() - vMin) / (vMax - vMin) }
 }
 
-private fun normZscore(values: List<Double>): List<Double> {
-    val mean = values.average()
-    val std = Math.sqrt(values.sumByDouble { Math.pow(it - mean, 2.0) })
-    return values.map { ((it - mean) / std) }
+fun List<Double>.normZscore(): List<Double> {
+    val mean = this.average()
+    val std = Math.sqrt(this.sumByDouble { Math.pow(it - mean, 2.0) })
+    return this.map { ((it - mean) / std) }
 }
 
 fun<A> Iterable<A>.countDuplicates(): Map<A, Int> =
@@ -74,6 +74,18 @@ fun Iterable<Double>.sd(): Double {
     val mean = average()
     return Math.sqrt(map { (it - mean).pow(2.0) }.average())
 }
+
+fun List<Double>.cosine(): List<Double> {
+    val s1 = this.sumByDouble { it.pow(2.0) }.pow(0.5)
+    return this.map { it / s1 }
+}
+
+fun List<Double>.cosine2(l: List<Double>): List<Double> {
+    val s1 = this.sumByDouble { it.pow(2.0) }.pow(0.5)
+    val s2 = l.sumByDouble { it.pow(2.0) }.pow(0.5)
+    return this.zip(l).map { (it.first * it.second) / (s1 * s2) }
+}
+
 
 fun<A, B: Comparable<B>> Map<A, B>.takeMostFrequent(n: Int): Map<A, B> =
         entries

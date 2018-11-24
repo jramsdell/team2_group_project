@@ -14,6 +14,7 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
     val vectors = ArrayList<EmailSparseVector>()
     val basisVectors = ArrayList<EmailSparseVector>()
     val kernel = LaplacianKernel(SimilarityFuns::simComponentCosine)
+    val kernel2 = LaplacianKernel(SimilarityFuns::simComponentCosine)
     val holdout = ArrayList<EmailSparseVector>()
 
     init {
@@ -74,7 +75,7 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
         val nDocs = searcher.indexReader.numDocs()
 //        val randomDocs = (0 until nDocs).shuffled(Random(21)).take(20)
         var nElements = 1000
-        val nBases = 10
+        val nBases = 40
         val randomDocs = (0 until nDocs).shuffled(Random(21)).take(nElements)
             .map(this::extractEmail)
             .filter { it.components.size > 0}
@@ -89,42 +90,13 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
             .map { embed(it) }
 
 
-//        randomDocs.mapTo(basisVectors) { docId -> extractEmail(docId) }
-//        basisVectors.addAll(findOrthogonal())
-//        val nElements = 2000
-//        val split = (0 until nDocs)
-//            .shuffled(Random(10)).take(nElements)
-//            .map {  docId ->
-//                val email = extractEmail(docId)
-//                embed(email) }
-//            .run {
-//                basisVectors.clear()
-//                take(20)
-//                    .mapTo(basisVectors) { it }
-//
-//            this.drop(20)
-//                    .map { embed2(it) }
-//            }
-
 
 
         split.take((nElements - nBases) / 2)
             .mapTo(vectors) {it}
-//        split
-//            .mapTo(vectors) {it}
         split.drop((nElements - nBases) / 2)
             .mapTo(holdout) {it}
 
-
-//        (0 until nDocs).shuffled(Random(10)).take(4000)
-//            .mapTo(vectors) { docId ->
-//                val email = extractEmail(docId)
-//                embed(email) }
-//
-//        (0 until nDocs).shuffled(Random(112340)).take(4000)
-//            .mapTo(holdout) { docId ->
-//                val email = extractEmail(docId)
-//                embed(email) }
     }
 
     private fun extractEmail(docId: Int): EmailSparseVector  {
@@ -152,8 +124,9 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
         val transformedComponents = basisVectors.mapIndexed { index, basis ->
             val key = index.toString()
 //            val result = SimilarityFuns.simOverlap(v, basis)
-//            val result = SimilarityFuns.sim(v, basis)
-            val result = kernel.sim(v, basis)
+//            val result = SimilarityFuns.simComponentL1Dist(basis, v)
+//            val result = kernel.sim(v, basis)
+            val result = kernel2.sim(v, basis)
 //            val result = SimilarityFuns.simComponentCosine(v, basis)
 //            println(result)
             key to result

@@ -35,8 +35,8 @@ class StochasticDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Doub
 
     fun runStep() {
         (0 until 60).forEach {
-            if (it % 10 == 0)
-                println(it)
+//            if (it % 10 == 0)
+//                println(it)
             val balls=  getBalls()
 //            val weights = balls.mapIndexed { index, ball ->
 //                ball.getParam().run { if (onlyPos && this < 0.0) 0.0 else this }
@@ -89,11 +89,11 @@ class StochasticDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Doub
 
 
 
-    fun search(weightUser: ((List<Double>) -> Unit)? = null) {
+    fun search(weightUser: ((List<Double>) -> Unit)? = null): List<Double> {
         var curHighest = highest
         var badCounter = 0
 
-        (0 until 400).forEach {
+        (0 until 200).forEach {
             runStep()
             println("Highest: $highest")
 
@@ -105,6 +105,8 @@ class StochasticDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Doub
             }
             curHighest = highest
         }
+
+        return bestWeights
     }
 }
 

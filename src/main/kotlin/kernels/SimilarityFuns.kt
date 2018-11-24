@@ -1,6 +1,7 @@
 package kernels
 
 import containers.EmailSparseVector
+import utils.toHashMap
 import kotlin.math.absoluteValue
 import kotlin.math.pow
 
@@ -36,6 +37,18 @@ object SimilarityFuns {
             (v1Component * weights[key.toInt()])
         }
     }
+
+    fun dotProducts(v1: EmailSparseVector, weights: List<Double>, partitions: Map<Int, Int>): HashMap<Int, Double> {
+        val bins = partitions.values.map { it to 0.0 }.toHashMap()
+        val keys = v1.components.keys
+        keys.forEach { key ->
+            val v1Component = v1.components[key] ?: 0.0
+            val loc = partitions[key.toInt()]!!
+            bins[loc] = bins[loc]!! + v1Component * weights[key.toInt()]
+        }
+        return bins
+    }
+
 
     fun simComponentL1DistWeights(v1: EmailSparseVector, v2: EmailSparseVector, weights: List<Double>): Double {
         val keys = v1.components.keys.union(v2.components.keys)
