@@ -6,6 +6,7 @@ package utils
 import java.util.*
 import java.util.concurrent.ThreadLocalRandom
 import kotlin.math.absoluteValue
+import kotlin.math.ln
 import kotlin.math.pow
 
 fun<K> HashMap<K, Double>.putMin(key: K, v: Double) {
@@ -21,10 +22,23 @@ fun <A, B: Number>Map<A, B>.normalize(): Map<A, Double> {
     return mapValues { (_, value) -> (value.toDouble() / total).defaultWhenNotFinite(0.0) }
 }
 
+fun <A, B: Number>Map<A, B>.normalize2(): Map<A, Double> {
+    val total = values.sumByDouble { it.toDouble().absoluteValue }
+    return mapValues { (_, value) -> (value.toDouble() / total).defaultWhenNotFinite(0.0) }
+}
+
 fun <A, B: Number>Map<A, B>.inverseNormalize(): Map<A, Double> {
     val total = values.sumByDouble { it.toDouble() }
     return mapValues { (_, value) -> (total / value.toDouble()).defaultWhenNotFinite(0.0) }.normalize()
 }
+
+fun Double.sigmoid() = 1.0 / (1.0 + Math.exp(-this))
+
+fun Double.tanh() = Math.tanh(this)
+fun Double.atanh() = 0.5 * ln((1 + this) / (1 - this))
+
+fun Double.exp() = Math.exp(this)
+
 
 fun Iterable<Double>.normalize(): List<Double> {
     val items = toList()

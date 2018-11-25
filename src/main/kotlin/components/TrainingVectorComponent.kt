@@ -1,24 +1,37 @@
 package components
 
+import com.google.common.util.concurrent.AtomicDouble
+import containers.EmailEmbeddedVector
 import containers.EmailSparseVector
-import kernels.GaussianKernel
-import kernels.LaplacianKernel
-import kernels.SimilarityFuns
+import kernels.*
 import org.apache.lucene.search.IndexSearcher
+import utils.defaultWhenNotFinite
+import utils.forEachParallel
 import utils.normalize
+import utils.pmap
 import java.util.*
 import kotlin.collections.ArrayList
 
 
 class TrainingVectorComponent(val searcher: IndexSearcher) {
+    var nBases = 50
     val vectors = ArrayList<EmailSparseVector>()
+//    val hamMatrix = (0 until 50).map { ArrayList<Double>() }
+//    val spamMatrix = (0 until 50).map { ArrayList<Double>() }
+
+//    val holdoutHamMatrix = (0 until 50).map { ArrayList<Double>() }
+//    val holdoutSpamMatrix = (0 until 50).map { ArrayList<Double>() }
+
+
     val basisVectors = ArrayList<EmailSparseVector>()
-    val kernel = LaplacianKernel(SimilarityFuns::simComponentCosine)
-    val kernel2 = LaplacianKernel(SimilarityFuns::simComponentCosine)
+    val basisCollection = ArrayList<List<EmailSparseVector>>()
+    val kernel = TanhKernel(SimilarityFuns::simComponentCosine)
+    val kernel2 = TanhKernel(SimilarityFuns::simComponentCosine)
     val holdout = ArrayList<EmailSparseVector>()
 
     init {
         train()
+        basisVectors.clear()
     }
 
     fun findOrthogonal(): ArrayList<EmailSparseVector> {
@@ -47,24 +60,24 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
     }
 
     fun getF1(caller: (EmailSparseVector) -> String): Double {
-        var tp = 0.0
-        var tn = 0.0
-        var fn = 0.0
-        var fp = 0.0
+        var tp = AtomicDouble(0.0)
+        var tn = AtomicDouble(0.0)
+        var fn = AtomicDouble(0.0)
+        var fp = AtomicDouble(0.0)
 
-        vectors.forEach { v ->
+        holdout.forEachParallel { v ->
             val called = caller(v)
-            if (v.label == "spam" && called == "spam") { tp += 1.0 }
-            else if (v.label == "spam" && called == "ham") { fn += 1.0 }
-            else if (v.label == "ham" && called == "ham") { tn += 1.0 }
-            else { fp += 1.0 }
+            if (v.label == "spam" && called == "spam") { tp.addAndGet(1.0) }
+            else if (v.label == "spam" && called == "ham") { fn.addAndGet(1.0) }
+            else if (v.label == "ham" && called == "ham") { tn.addAndGet(1.0) }
+            else { fp.addAndGet(1.0) }
         }
 
-        val precision = tp.toDouble() / (tp + fp)
-        val recall = tp.toDouble() / (tp + fn)
+        val precision = tp.toDouble() / (tp.get() + fp.get())
+        val recall = tp.toDouble() / (tp.get() + fn.get())
         val f1 = (2 * (precision * recall) / (precision + recall)).run { if(isNaN()) 0.0 else this }
-        val precision2 = tn.toDouble() / (tn + fn)
-        val recall2 = tn.toDouble() / (tn + fp)
+        val precision2 = tn.toDouble() / (tn.get() + fn.get())
+        val recall2 = tn.toDouble() / (tn.get() + fp.get())
         val f2 = (2 * (precision2 * recall2) / (precision2 + recall2)).run { if(isNaN()) 0.0 else this }
 
         return (f1 + f2) / 2.0
@@ -73,31 +86,43 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
 
     private fun train() {
         val nDocs = searcher.indexReader.numDocs()
-//        val randomDocs = (0 until nDocs).shuffled(Random(21)).take(20)
-        var nElements = 500
-        val nBases = 20
-        val randomDocs = (0 until nDocs).shuffled(Random(21)).take(nElements)
-            .map(this::extractEmail)
+        var nElements = 2000
+        var randomDocs = (0 until nDocs).shuffled(Random(21)).take(nElements)
+//            .map(this::extractEmail)
+            .pmap { extractEmail(it) }
             .filter { it.components.size > 0}
 
         nElements = randomDocs.size
 
-        randomDocs
-            .take(nBases)
-            .mapTo(basisVectors) { it }
+        (0 until 5).forEach {
+            randomDocs
+                .take(nBases)
+                .toList()
+                .apply { basisCollection.add(this) }
 
-        val split = randomDocs.drop(nBases)
-            .map { embed(it) }
+            randomDocs = randomDocs.drop(nBases)
+        }
+
+//        randomDocs
+//            .take(nBases)
+//            .mapTo(basisVectors) { it }
+
+        val step = randomDocs.size / 2
 
 
+//        val split = randomDocs.drop(nBases)
+//            .pmap { embed(it) }
 
-
-        split.take((nElements - nBases) / 2)
+        randomDocs.take(step)
             .mapTo(vectors) {it}
-        split.drop((nElements - nBases) / 2)
+        randomDocs.drop(step)
             .mapTo(holdout) {it}
 
     }
+
+
+
+
 
     private fun extractEmail(docId: Int): EmailSparseVector  {
         val doc = searcher.doc(docId)
@@ -107,7 +132,8 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
         // Create frequency dist of tokens
         val dist = doc.get("text")
             .split(" ")
-            .flatMap { createTriCharGrams(it) }
+            .flatMap { createCharacterGrams(it, 4) }
+//            .run { createBigrams(this) }
             .groupingBy { it }
             .eachCount()
             .map { it.key to it.value.toDouble() }
@@ -116,15 +142,24 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
         return EmailSparseVector(label = label, components = dist, id = id)
     }
 
-    fun createTriCharGrams(token: String) =
-        token.windowed(3, 1, false)
 
 
-    fun embed(v: EmailSparseVector): EmailSparseVector {
-        val transformedComponents = basisVectors.mapIndexed { index, basis ->
+
+    fun createCharacterGrams(token: String, n: Int) =
+        token.windowed(n, 1, false)
+
+    fun createBigrams(tokens: List<String>): List<String> =
+            tokens.windowed(2, 1, false)
+                .map { it[0] + it[1] }
+
+
+
+    fun embed(v: EmailSparseVector, bVectors: List<EmailSparseVector>): EmailSparseVector {
+//        val transformedComponents = basisCollection[basisIndex].mapIndexed { index, basis ->
+            val transformedComponents = bVectors.mapIndexed { index, basis ->
             val key = index.toString()
 //            val result = SimilarityFuns.simOverlap(v, basis)
-//            val result = SimilarityFuns.simComponentL1Dist(basis, v)
+//            val result = SimilarityFuns.simComponentDot(basis, v)
 //            val result = kernel.sim(v, basis)
             val result = kernel2.sim(v, basis)
 //            val result = SimilarityFuns.simComponentCosine(v, basis)
@@ -135,14 +170,6 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
         return EmailSparseVector(label = v.label, components = transformedComponents, id = v.id)
     }
 
-    fun embed2(v: EmailSparseVector): EmailSparseVector {
-        val transformedComponents = basisVectors.mapIndexed { index, basis ->
-            val key = index.toString()
-            val result = SimilarityFuns.simComponentL2Dist(v, basis)
-            key to result
-        }.toMap()
 
-        return EmailSparseVector(label = v.label, components = transformedComponents, id = v.id)
-    }
 
 }

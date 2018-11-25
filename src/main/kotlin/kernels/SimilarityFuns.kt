@@ -1,7 +1,7 @@
 package kernels
 
 import containers.EmailSparseVector
-import utils.toHashMap
+import utils.*
 import kotlin.math.absoluteValue
 import kotlin.math.pow
 
@@ -24,6 +24,33 @@ object SimilarityFuns {
             (v1Component - v2Component)
         }
     }
+
+    fun simComponentDot(v1: EmailSparseVector, v2: EmailSparseVector): Double {
+        val keys = v1.components.keys.union(v2.components.keys)
+        val v1Norm = v1.components.normalize()
+        val v2Norm = v2.components.normalize()
+
+        return keys.sumByDouble { key ->
+            val v1Component = v1Norm[key] ?: 0.0
+            val v2Component = v2Norm[key] ?: 0.0
+            v1Component * v2Component
+        }
+    }
+
+    fun simComponentDotKld(v1: EmailSparseVector, v2: EmailSparseVector): Double {
+        val keys = v1.components.keys.union(v2.components.keys)
+        val v1Norm = v1.components.normalize()
+        val v2Norm = v2.components.normalize()
+
+        return keys.sumByDouble { key ->
+            val v1Component = v1Norm[key] ?: 0.0
+            val v2Component = v2Norm[key] ?: 0.0
+            val k1 = v1Component * Math.log(v1Component / v2Component).defaultWhenNotFinite(0.0)
+            val k2 = v2Component * Math.log(v2Component / v1Component).defaultWhenNotFinite(0.0)
+            ((k1 + k2) / 2.0).defaultWhenNotFinite(0.0)
+        }
+    }
+
 
     fun simOverlap(v1: EmailSparseVector, v2: EmailSparseVector): Double {
         val keys = v1.components.keys.intersect(v2.components.keys)
