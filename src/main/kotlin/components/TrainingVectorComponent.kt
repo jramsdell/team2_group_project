@@ -75,7 +75,7 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
         val nDocs = searcher.indexReader.numDocs()
 //        val randomDocs = (0 until nDocs).shuffled(Random(21)).take(20)
         var nElements = 1000
-        val nBases = 40
+        val nBases = 80
         val randomDocs = (0 until nDocs).shuffled(Random(21)).take(nElements)
             .map(this::extractEmail)
             .filter { it.components.size > 0}

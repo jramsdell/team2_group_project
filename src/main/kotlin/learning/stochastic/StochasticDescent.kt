@@ -93,7 +93,7 @@ class StochasticDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Doub
         var curHighest = highest
         var badCounter = 0
 
-        (0 until 200).forEach {
+        (0 until 2000).forEach {
             runStep()
             println("Highest: $highest")
 

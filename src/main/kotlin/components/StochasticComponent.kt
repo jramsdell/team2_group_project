@@ -3,6 +3,7 @@ package components
 import containers.EmailSparseVector
 import kernels.SimilarityFuns
 import learning.GhettoKDTree
+import learning.stochastic.SimpleDescent
 import learning.stochastic.StochasticDescent
 import org.apache.commons.math3.distribution.NormalDistribution
 import utils.*
@@ -49,8 +50,8 @@ class StochasticComponent(val basisVectors: List<EmailSparseVector>,
         val hamDist = createNormalDist(w2, hamVectors)
         val transformed = (spamVectors + hamVectors).map { SimilarityFuns.dotProduct(it, w2) }
 
-//        return getDistance2(spamDist, hamDist, transformed)
-        return getDistance(spamDist.mean, hamDist.mean, transformed)
+        return getDistance2(spamDist, hamDist, transformed)
+//        return getDistance(spamDist.mean, hamDist.mean, transformed)
 
 //        val spamDists = createNormalDists(weights, spamVectors)
 //        val hamDists = createNormalDists(weights, hamVectors)
@@ -86,17 +87,26 @@ class StochasticComponent(val basisVectors: List<EmailSparseVector>,
     fun getDistance(mean1: Double, mean2: Double, points: List<Double>): Double {
         val lf1 = points.map { (mean1 - it).absoluteValue}.cosine()
         val lf2 = (points).map { (mean2 - it).absoluteValue}.cosine()
-        return -(lf1.zip(lf2).sumByDouble {  (it.first * it.second) }.absoluteValue)
+        val d1 = -(lf1.zip(lf2).sumByDouble {  (it.first * it.second) }.absoluteValue)
+        val uniform = points.map { 1.0 }.cosine()
+        val d2 = (lf1.zip(uniform).sumByDouble {  (it.first * it.second) })
+        val d3 = (lf2.zip(uniform).sumByDouble {  (it.first * it.second) })
+
+        return Math.exp(d1) * (Math.exp(d2) * Math.exp(d3))
+
     }
 
     fun getDistance2(dist1: NormalDistribution, dist2: NormalDistribution, points: List<Double>): Double {
         val lf1 = points.map { (dist1.getPerturb(it)).absoluteValue}.cosine()
         val lf2 = (points).map { (dist2.getPerturb(it)).absoluteValue}.cosine()
-        return -lf1.zip(lf2).sumByDouble {  (it.first * it.second).absoluteValue }
-//
-//        val lf1 = points.map { (dist1.getPerturb(it)).absoluteValue}
-//        val lf2 = (points).map { (dist2.getPerturb(it)).absoluteValue}
-//        return -lf1.cosine2(lf2).sum().absoluteValue
+
+        val d1 = -(lf1.zip(lf2).sumByDouble {  (it.first * it.second) }.absoluteValue)
+
+        val uniform = points.map { 1.0 }.cosine()
+        val d2 = (lf1.zip(uniform).sumByDouble {  (it.first * it.second) })
+        val d3 = (lf2.zip(uniform).sumByDouble {  (it.first * it.second) })
+
+        return Math.exp(d1) * (Math.exp(d2) * Math.exp(d3))
     }
 
 
@@ -107,8 +117,9 @@ class StochasticComponent(val basisVectors: List<EmailSparseVector>,
     }
 
     fun NormalDistribution.getPerturb(point: Double): Double {
-        val p1 = logDensity(point)
-        return p1
+        val dist = (point - mean).absoluteValue
+        val p1 = probability(mean - dist, mean + dist)
+        return 1.0 - p1
     }
 
 
@@ -120,7 +131,7 @@ class StochasticComponent(val basisVectors: List<EmailSparseVector>,
 
 
     fun doTrain(): List<Double> {
-        val descender = StochasticDescent(basisVectors.size, this::getAverageDist, onlyPos = false, useDist = false)
+        val descender = SimpleDescent(basisVectors.size, this::getAverageDist, onlyPos = false, useDist = false)
         return descender.search({ weights -> println("F1: ${getKNN(weights)}") })
     }
 
@@ -235,8 +246,8 @@ class StochasticComponent(val basisVectors: List<EmailSparseVector>,
 //
 //        if (spamScore > hamScore) "spam" else "ham"
 
-        if ((point - distHam.mean).absoluteValue < (point - distSpam.mean).absoluteValue) "ham" else "spam"
-//        if (distSpam.getPerturb(point) > distHam.getPerturb(point)) "spam" else "ham"
+//        if ((point - distHam.mean).absoluteValue < (point - distSpam.mean).absoluteValue) "ham" else "spam"
+        if (distSpam.getPerturb(point) > distHam.getPerturb(point)) "spam" else "ham"
 
 //        (0 until nPartitions).forEach { partition ->
 //            val p = points[partition]!!
