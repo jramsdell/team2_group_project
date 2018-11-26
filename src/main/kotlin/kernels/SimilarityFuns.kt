@@ -1,6 +1,7 @@
 package kernels
 
 import containers.EmailSparseVector
+import info.debatty.java.stringsimilarity.*
 import utils.*
 import kotlin.math.absoluteValue
 import kotlin.math.pow
@@ -37,6 +38,51 @@ object SimilarityFuns {
         }
     }
 
+    fun simComponentDotCovariance(v1: EmailSparseVector, v2: EmailSparseVector, covarianceMap: HashMap<String, HashMap<String, Double>>): Double {
+        val keys = v1.components.keys.union(v2.components.keys)
+        val v1Norm = v1.components
+        val v2Norm = v2.components
+
+        var score = 0.0
+
+        v1.components.forEach { (k,v) ->
+            val dist = covarianceMap[k]
+            if (dist != null) {
+                v2.components.forEach { (k2, v2) ->
+                    score += dist[k2] ?: 0.0
+                }
+            }
+        }
+
+
+        return score
+
+    }
+
+    fun simComponentString(v1: EmailSparseVector, v2: EmailSparseVector): Double {
+        val sim = NormalizedLevenshtein()
+
+        val best1 = v1.components.entries.toList()
+            .sortedByDescending { it.value }.take(10)
+        val best2 = v2.components.entries.toList()
+            .sortedByDescending { it.value }.take(10)
+
+
+        val results = best1.map{ (v1Comp, v1Freq) ->
+            best2.map { (v2Comp, v2Freq) ->
+                sim.similarity(v1Comp, v2Comp) * Math.log(v1Freq) * Math.log(v2Freq)
+            }.max()!!
+        }.max()!!
+
+        val results2 = best2.map{ (v1Comp, v1Freq) ->
+            best1.map { (v2Comp, v2Freq) ->
+                sim.similarity(v1Comp, v2Comp) * Math.log(v1Freq) * Math.log(v2Freq)
+            }.max()!!
+        }.max()!!
+
+        return results.defaultWhenNotFinite(0.0) + results2.defaultWhenNotFinite(0.0)
+    }
+
     fun simComponentDotKld(v1: EmailSparseVector, v2: EmailSparseVector): Double {
         val keys = v1.components.keys.union(v2.components.keys)
         val v1Norm = v1.components.normalize()
@@ -65,16 +111,7 @@ object SimilarityFuns {
         }
     }
 
-    fun dotProducts(v1: EmailSparseVector, weights: List<Double>, partitions: Map<Int, Int>): HashMap<Int, Double> {
-        val bins = partitions.values.map { it to 0.0 }.toHashMap()
-        val keys = v1.components.keys
-        keys.forEach { key ->
-            val v1Component = v1.components[key] ?: 0.0
-            val loc = partitions[key.toInt()]!!
-            bins[loc] = bins[loc]!! + v1Component * weights[key.toInt()]
-        }
-        return bins
-    }
+
 
 
     fun simComponentL1DistWeights(v1: EmailSparseVector, v2: EmailSparseVector, weights: List<Double>): Double {

@@ -84,7 +84,7 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
 
             val stochastic = StochasticComponent(trainingComponent.nBases, embedded, holdout)
 
-            val weights = stochastic.doTrain()
+            val weights = stochastic.doTrain(true, 600)
             val e = convertResult2(weights, trainingComponent.basisCollection[index])
 //            rerunResult(e, stochastic)
 //            trainingComponent.basisCollection[index].filterIndexed { i, e -> weights[i] != 0.0   }
@@ -94,12 +94,18 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
 //            .run { nextLayer(this, 70) }
 //            .run { nextLayer(this, 100) }
 
-        val embedded = trainingComponent.vectors.map { trainingComponent.embed(it, results) }
+        val embedded = (trainingComponent.vectors + trainingComponent.extras).map { trainingComponent.embed(it, results) }
+//        val embedded = (trainingComponent.vectors).map { trainingComponent.embed(it, results) }
         val holdout = trainingComponent.holdout.map { trainingComponent.embed(it, results) }
+
         val stochastic = StochasticComponent(results.size, embedded, holdout)
-        val weights = stochastic.doTrain(winnow = false, nIterations = 60000)
-        val e = convertResult(weights, results)
-        rerunResult(e, stochastic)
+
+        val weights = stochastic.doTrain2(winnow = false, nIterations = 8)
+//        val weights = stochastic.doTrain3(winnow = false, nIterations = 600)
+
+//        val e = convertResult(weights, results)
+//        rerunResult(e, stochastic)
+
 
     }
 

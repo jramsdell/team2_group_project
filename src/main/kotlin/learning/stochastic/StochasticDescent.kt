@@ -74,6 +74,8 @@ class StochasticDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Doub
                 val lowestIndex = bestMap.withIndex().minBy { it.value }!!.index
                 bestMap[lowestIndex] = map
 
+                println("Result: $map")
+
                 if (highest < map) {
                     println("$map : $weights")
                     highest = map

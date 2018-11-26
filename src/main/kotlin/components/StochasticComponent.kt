@@ -14,57 +14,53 @@ import java.util.*
 import kotlin.math.absoluteValue
 import kotlin.math.pow
 import kotlin.math.sqrt
+import kotlin.system.measureTimeMillis
 
 class StochasticComponent(val nBasis: Int,
                           trainingVectors: List<EmailSparseVector>,
                           var holdout: List<EmailSparseVector>,
                           val nPartitions: Int = 10) {
-    val perturber = NormalDistribution(org.apache.commons.math3.random.MersenneTwister(123), 0.0, 1.0)
-    val chunkSize = 200
+    private val perturber = NormalDistribution(org.apache.commons.math3.random.MersenneTwister(123), 0.0, 1.0)
 
-    var memoizedSpamDist = NormalDistribution(0.1, 2.0)
-    var memoizedHamDist = NormalDistribution(0.1, 2.0)
-
-    val spamPartitions = trainingVectors.filter { it.label == "spam" }
-        .chunked(chunkSize)
-
-//    val spamVectors = trainingVectors.filter { it.label == "spam" }
-    val allSpams = trainingVectors.filter { it.label == "spam" }
-//    var spamVectors = spamPartitions.first()
+    private val allSpams = trainingVectors.filter { it.label == "spam" }
     var spamVectors = allSpams
-//    val spamMatrix = spamVectors.flatMap { it.components.map { it.key.toInt() to it.value } }
-//        .groupBy { it.first }
-//        .map { it.key to it.value.map { it.second } }
-//        .sortedBy { it.first }
-//        .map { it.second }
 
 
-//        .map {
-//            val newComponents = it.components.map { (k,v) -> k to v + (0.01 * v * perturber.sample()) }
-//                .toMap()
-//            EmailSparseVector(it.label, newComponents, it.id)
-//        }
-val hamPartitions = trainingVectors.filter { it.label == "ham" }
-    .chunked(chunkSize)
 
-//    val hamVectors = trainingVectors.filter { it.label == "ham" }
-//    var hamVectors = hamPartitions.first()
-    val allHams = trainingVectors.filter { it.label == "ham" }
+    private val ones = (0 until nBasis).map { 1.0 }
+
+
+
+
+    private val allHams = trainingVectors.filter { it.label == "ham" }
     var hamVectors = allHams
 //    val ghettoTree = GhettoKDTree(trainingVectorComponent)
 
-//    val hamMatrix = hamVectors.flatMap { it.components.map { it.key.toInt() to it.value } }
-//        .groupBy { it.first }
-//        .map { it.key to it.value.map { it.second } }
-//        .sortedBy { it.first }
-//        .map { it.second }
+    var memoizedSpamDist = NormalDistribution(0.1, 2.0)
+    private val memoizedSpamDists = createNormalDists(ones, spamVectors)
+    private val memoizedSpamDists2 = createNormalDistPartitions(ones, spamVectors, 10)
+
+    var memoizedHamDist = NormalDistribution(0.1, 2.0)
+    private val memoizedHamDists = createNormalDists(ones, hamVectors)
+    private val memoizedHamDists2 = createNormalDistPartitions(ones, hamVectors, 10)
+
 
     fun getAverageDist(weights: List<Double>): Double {
         val w2 = weights
         val spamDist = createNormalDist(w2, spamVectors)
         val hamDist = createNormalDist(w2, hamVectors)
         val transformed = (spamVectors + hamVectors).map { SimilarityFuns.dotProduct(it, w2) }
-        return getDistance3(spamDist, hamDist, transformed)
+        return getDistance2(spamDist, hamDist, transformed)
+    }
+
+    fun rbfF1Score(weights: List<Double>): Double {
+        val result =  getF1(myLabeler2(weights))
+        return result
+    }
+
+    fun linearDiscrim(weights: List<Double>): Double {
+        val result =  getF1(myDiscrimLabeler(weights))
+        return result
     }
 
 
@@ -84,15 +80,19 @@ val hamPartitions = trainingVectors.filter { it.label == "ham" }
     fun getDistance2(dist1: NormalDistribution, dist2: NormalDistribution, points: List<Double>): Double {
         val lf1 = points.map { (dist1.getPerturb(it))}.normalize()
         val lf2 = (points).map { (dist2.getPerturb(it))}.normalize()
-        val d1 = lf1.zip(lf2).sumByDouble { (v1, v2) -> v1 * Math.log(v1 / v2) }
-        val d2 = lf1.zip(lf2).sumByDouble { (v1, v2) -> v2 * Math.log(v2 / v1) }
+        val d1 = lf1.zip(lf2).sumByDouble { (v1, v2) ->
+            val div1 = v1 * Math.log(v1 / v2)
+            val div2 = v2 * Math.log(v2 / v1)
+            (div1 + div2) / 2.0
+        }
 
         val uniform = points.map { 1.0  }.normalize()
         val d3 = -(lf1.zip(uniform).sumByDouble {  (it.first * Math.log(it.first / it.second)) })
         val d4 = -(lf2.zip(uniform).sumByDouble {  (it.first * Math.log(it.first / it.second)) })
 
-        return (d1 + d2 ) / 2.0 + (d3 + d4)
+        return d1 + (d3 + d4)
     }
+
 
     fun getDistance3(dist1: NormalDistribution, dist2: NormalDistribution, points: List<Double>): Double {
         val lf1 = points.map { (dist1.getPerturb(it))}.cosine()
@@ -104,8 +104,6 @@ val hamPartitions = trainingVectors.filter { it.label == "ham" }
 
         return d1 +  d2 + d3
     }
-
-
 
 
     fun NormalDistribution.getInvDist(point: Double): Double {
@@ -133,7 +131,7 @@ val hamPartitions = trainingVectors.filter { it.label == "ham" }
         var fn = AtomicDouble(0.0)
         var fp = AtomicDouble(0.0)
 
-        holdout.forEachParallel { v ->
+        holdout.forEachParallelQ { v ->
             val called = caller(v)
             if (v.label == "spam" && called == "spam") { tp.addAndGet(1.0) }
             else if (v.label == "spam" && called == "ham") { fn.addAndGet(1.0) }
@@ -169,13 +167,26 @@ val hamPartitions = trainingVectors.filter { it.label == "ham" }
             println("F1: ${getKNN(weights)}") }
     }
 
+    fun doTrain2(winnow: Boolean = true, nIterations: Int = 600): List<Double> {
+        val descender = SimpleDescent(nBasis, this::rbfF1Score, onlyPos = false, useDist = false, winnow = winnow)
+
+        return descender.search(iterations = nIterations)
+    }
+
+    fun doTrain3(winnow: Boolean = true, nIterations: Int = 600): List<Double> {
+        val descender = SimpleDescent(nBasis + 1, this::linearDiscrim, onlyPos = false, useDist = false, winnow = winnow)
+
+        return descender.search(iterations = nIterations)
+    }
+
+
 
 
     fun createNormalDist(weights: List<Double>, vectors: List<EmailSparseVector>): NormalDistribution {
         val scores = vectors.map { SimilarityFuns.dotProduct(it, weights) }
         val average = scores.average()
         val variance = scores.map { (average - it).pow(2.0) }.sum()
-        return NormalDistribution(average, variance.pow(0.5))
+        return NormalDistribution(average, variance.pow(0.5).run { if (this <= 0.0) 0.001 else this })
     }
 
     fun createNormalDists(weights: List<Double>, vectors: List<EmailSparseVector>): HashMap<String, NormalDistribution> {
@@ -186,8 +197,27 @@ val hamPartitions = trainingVectors.filter { it.label == "ham" }
             val scores = vectors.map { vector -> vector.components[component]!!  }
             val mean = scores.average() * weight
             val variance = scores.map { (mean - it).pow(2.0) }.sum()
-            normDists[component] = NormalDistribution(mean, variance.pow(0.5))
+            normDists[component] = NormalDistribution(mean, variance.pow(0.5).run { if (this <= 0.0) 0.001 else this })
 
+        }
+        return normDists
+    }
+
+    fun createNormalDistPartitions(weights: List<Double>, vectors: List<EmailSparseVector>, nPartitions: Int = 5): HashMap<String, List<NormalDistribution>> {
+        val normDists = HashMap<String, List<NormalDistribution>>()
+
+        vectors.first().components.keys.forEach { component ->
+            val scores = vectors.map { vector -> vector.components[component]!!  }
+            val weight = weights[component.toInt()]
+
+            val dists = scores.chunked(scores.size / nPartitions)
+                .map { partition ->
+                    val mean = partition.average() * weight
+                    val variance = partition.map { (mean - it).pow(2.0) }.sum()
+                    NormalDistribution(mean, variance.pow(0.5).run { if (this <= 0.0) 0.001 else this })
+                }
+
+            normDists[component] = dists
         }
         return normDists
     }
@@ -204,6 +234,30 @@ val hamPartitions = trainingVectors.filter { it.label == "ham" }
 //            .groupingBy { it }
 //            .eachCount()
 //            .maxBy { it.value }!!.key
+    }
+
+    fun myLabeler2(weights: List<Double>) = { e: EmailSparseVector ->
+        var hamScore = 0.0
+        var spamScore = 0.0
+//            e.components.forEach { (k, v) ->
+//                val weight = weights[k.toInt()]
+//                hamScore += weight * Math.log(memoizedHamDists[k]!!.getInvDist(v)).defaultWhenNotFinite(0.0)
+//                spamScore += weight * Math.log(memoizedSpamDists[k]!!.getInvDist(v)).defaultWhenNotFinite(0.0)
+//            }
+
+        e.components.flatMap { (k, v) ->
+            val weight = weights[k.toInt()]
+            val hams = memoizedHamDists2[k]!!.map { "ham" to weight * it.getInvDist(v) }
+            val spams = memoizedSpamDists2[k]!!.map { "spam" to weight * it.getInvDist(v) }
+            hams + spams
+        }.maxBy { it.second }!!
+            .first
+//        if (hamScore > spamScore) "ham" else "spam"
+    }
+
+    fun myDiscrimLabeler(weights: List<Double>) = { e: EmailSparseVector ->
+        val point = SimilarityFuns.dotProduct(e, weights)
+        if ((point - weights.last()) > 0.0) "spam" else "ham"
     }
 
 

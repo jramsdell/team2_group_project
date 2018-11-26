@@ -100,6 +100,12 @@ fun List<Double>.cosine2(l: List<Double>): List<Double> {
     return this.zip(l).map { (it.first * it.second) / (s1 * s2) }
 }
 
+fun Iterable<Double>.softmax(temp: Double = 2.0): List<Double> {
+    val results = this.map { Math.exp(it) / temp }
+    val total = results.sum()
+    return results.map { it / total }.apply { println(this) }
+}
+
 
 fun<A, B: Comparable<B>> Map<A, B>.takeMostFrequent(n: Int): Map<A, B> =
         entries

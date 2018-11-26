@@ -5,17 +5,15 @@ import containers.EmailEmbeddedVector
 import containers.EmailSparseVector
 import kernels.*
 import org.apache.lucene.search.IndexSearcher
-import utils.defaultWhenNotFinite
-import utils.forEachParallel
-import utils.normalize
-import utils.pmap
+import utils.*
+import java.lang.Double.sum
 import java.util.*
 import kotlin.collections.ArrayList
 
 
 class TrainingVectorComponent(val searcher: IndexSearcher) {
-    var nBases = 8
-    var nSets = 30
+    var nBases = 30
+    var nSets = 5
     val vectors = ArrayList<EmailSparseVector>()
 //    val hamMatrix = (0 until 50).map { ArrayList<Double>() }
 //    val spamMatrix = (0 until 50).map { ArrayList<Double>() }
@@ -26,13 +24,36 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
 
     val basisVectors = ArrayList<EmailSparseVector>()
     val basisCollection = ArrayList<List<EmailSparseVector>>()
-    val kernel = TanhKernel(SimilarityFuns::simComponentCosine)
-    val kernel2 = TanhKernel(SimilarityFuns::simComponentCosine)
+    val kernel = TanhKernel(SimilarityFuns::simComponentDot)
+    // 0.94989
     val holdout = ArrayList<EmailSparseVector>()
+    val extras = ArrayList<EmailSparseVector>()
+    val coMap = HashMap<String, HashMap<String, Double>>()
+    val kernel2 = SoftplusKernel({ e1, e2 -> SimilarityFuns.simComponentDotCovariance(e1, e2, coMap)})
 
     init {
         train()
         basisVectors.clear()
+        getCovariance()
+    }
+
+    fun getCovariance() {
+
+        vectors.forEach { vector ->
+            val mostFreq = vector.components.takeMostFrequent(5)
+            mostFreq.forEach { c1, d1 ->
+                mostFreq.forEach { c2, d2 ->
+                    if (c1 !in coMap)
+                        coMap[c1] = HashMap()
+
+                    coMap[c1]!!.merge(c2, d1 * d2, ::sum)
+                }
+                val total = coMap[c1]!!.values.sum()
+                coMap[c1]!!.forEach { (k,v) -> coMap[c1]!![k] = v / total }
+//                coMap[c1]!! = coMap[c1]!!.normalize()
+            }
+        }
+
     }
 
     fun findOrthogonal(): ArrayList<EmailSparseVector> {
@@ -87,7 +108,7 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
 
     private fun train() {
         val nDocs = searcher.indexReader.numDocs()
-        var nElements = 1500
+        var nElements = 2000
         var randomDocs = (0 until nDocs).shuffled(Random(21)).take(nElements)
 //            .map(this::extractEmail)
             .pmap { extractEmail(it) }
@@ -103,6 +124,11 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
 
             randomDocs = randomDocs.drop(nBases)
         }
+
+        randomDocs.take(500)
+            .mapTo(extras) { it }
+
+        randomDocs = randomDocs.drop(500)
 
 //        randomDocs
 //            .take(nBases)
