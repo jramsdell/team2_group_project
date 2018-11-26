@@ -22,7 +22,7 @@ private data class StepResult(
 
 class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, val onlyPos: Boolean = false, val useDist: Boolean = true, val endFun: (() -> Unit)? = null, val winnow: Boolean = true) {
 //    var weights = (0 until nFeatures).map { -Math.random() }.normalize()
-    var weights = (0 until nFeatures).map { 1.0 }.normalize()
+    var weights = (0 until nFeatures).map { 1.0 }.cosine()
     val converged = AtomicBoolean(false)
     private val priorities = PriorityQueue<StepResult>(kotlin.Comparator { t1, t2 -> -compareValues(t1.gradient, t2.gradient)  })
     var lastStep = (0 until nFeatures).map { it to 1.0 }.toHashMap()
@@ -38,7 +38,7 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
 //            .filter { it.absoluteValue <= lastStep[feature]!!.absoluteValue }
 
         return steps.pmap { step ->
-            val nWeights = weights.mapIndexed { fIndex, value -> if(feature == fIndex) value + step else value    }
+            val nWeights = weights.mapIndexed { fIndex, value -> if(feature == fIndex) value + step else value    }.cosine()
             step to scoreFun(nWeights) - base }
             .maxBy { it.second }!!
     }
@@ -70,8 +70,8 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
         lastStep[best.first] = best.second.first
 
         weights = weights.mapIndexed { index, value -> if (index == best.first) value + best.second.first else value  }
-            .normalize()
-//            .cosine()
+//            .normalize()
+            .cosine()
     }
 
     fun doStep2() {
@@ -92,8 +92,8 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
 
 
         weights = weights.mapIndexed { index, value -> if (index == next.feature) value + result.first else value  }
-            .normalize()
-//            .cosine()
+//            .normalize()
+            .cosine()
 
         lastStep[next.feature] = result.first
         val newResult = StepResult(feature = next.feature, step = result.first, gradient = result.second)
@@ -103,9 +103,9 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
 
 
 
-    fun search(weightUser: ((List<Double>) -> Unit)? = null): List<Double> {
+    fun search(iterations: Int = 600, weightUser: ((List<Double>) -> Unit)? = null): List<Double> {
         initialize()
-        (0 until 1000)
+        (0 until iterations)
             .forEach {
                 if (!converged.get() && priorities.isNotEmpty()) {
 
@@ -114,8 +114,9 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
                     if (it > 100) {
                         weights = weights.mapIndexed { index, value ->
                             if ((-0.05 < value && value < 0.05) && lastStep[index]!! < 0.01 && lastStep[index]!! > -0.01) (if (winnow) 0.0 else value) else value }
+//                            if ((-0.001 < value && value < 0.001) && lastStep[index]!! < 0.01 && lastStep[index]!! > -0.01) (if (winnow) 0.0 else value) else value }
                     }
-                    if (it % 100 == 0) {
+                    if (it % 100 == 99) {
                         weightUser?.invoke(weights)
                         println(weights.count { it != 0.0 })
                     }

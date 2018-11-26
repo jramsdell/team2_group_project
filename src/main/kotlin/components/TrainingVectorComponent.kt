@@ -14,7 +14,8 @@ import kotlin.collections.ArrayList
 
 
 class TrainingVectorComponent(val searcher: IndexSearcher) {
-    var nBases = 50
+    var nBases = 8
+    var nSets = 30
     val vectors = ArrayList<EmailSparseVector>()
 //    val hamMatrix = (0 until 50).map { ArrayList<Double>() }
 //    val spamMatrix = (0 until 50).map { ArrayList<Double>() }
@@ -86,7 +87,7 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
 
     private fun train() {
         val nDocs = searcher.indexReader.numDocs()
-        var nElements = 2000
+        var nElements = 1500
         var randomDocs = (0 until nDocs).shuffled(Random(21)).take(nElements)
 //            .map(this::extractEmail)
             .pmap { extractEmail(it) }
@@ -94,7 +95,7 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
 
         nElements = randomDocs.size
 
-        (0 until 5).forEach {
+        (0 until nSets).forEach {
             randomDocs
                 .take(nBases)
                 .toList()

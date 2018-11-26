@@ -13,6 +13,7 @@ import utils.*
 import java.util.*
 import kotlin.math.absoluteValue
 import kotlin.math.pow
+import kotlin.math.sqrt
 
 class StochasticComponent(val nBasis: Int,
                           trainingVectors: List<EmailSparseVector>,
@@ -65,6 +66,7 @@ val hamPartitions = trainingVectors.filter { it.label == "ham" }
         val transformed = (spamVectors + hamVectors).map { SimilarityFuns.dotProduct(it, w2) }
         return getDistance3(spamDist, hamDist, transformed)
     }
+
 
 
     fun getDistance(mean1: Double, mean2: Double, points: List<Double>): Double {
@@ -153,23 +155,20 @@ val hamPartitions = trainingVectors.filter { it.label == "ham" }
     var counter = 0
 
 
-    fun doTrain(winnow: Boolean = true): List<Double> {
+    fun doTrain(winnow: Boolean = true, nIterations: Int = 600): List<Double> {
         val descender = SimpleDescent(nBasis, this::getAverageDist, onlyPos = false, useDist = false, winnow = winnow, endFun = {
-//            spamVectors = spamPartitions.sampleRandom()
-//            hamVectors = hamPartitions.sampleRandom()
             counter += 1
-//            spamVectors = spamPartitions[counter % spamPartitions.size]
-//            hamVectors = hamPartitions[counter % hamPartitions.size]
             spamVectors = allSpams
             hamVectors = allHams
 
         })
-        return descender.search({ weights ->
+        return descender.search(nIterations) { weights ->
             memoizedHamDist = createNormalDist(weights, allHams)
             memoizedSpamDist = createNormalDist(weights, allSpams)
 
-            println("F1: ${getKNN(weights)}") })
+            println("F1: ${getKNN(weights)}") }
     }
+
 
 
     fun createNormalDist(weights: List<Double>, vectors: List<EmailSparseVector>): NormalDistribution {
@@ -196,12 +195,7 @@ val hamPartitions = trainingVectors.filter { it.label == "ham" }
 
     fun myLabeler(weights: List<Double>) = { e: EmailSparseVector ->
         val w2 = weights
-//        val avHam = hamVectors.map { SimilarityFuns.dotProduct(it, weights) }.average()
-//        val distHam = createNormalDist(w2, allHams)
-//        val avSpam = spamVectors.map { SimilarityFuns.dotProduct(it, weights) }.average()
-//        val distSpam = createNormalDist(w2, allSpams)
         val point = SimilarityFuns.dotProduct(e, w2)
-//        if ((point - distHam.mean).absoluteValue < (point - distSpam.mean).absoluteValue) "ham" else "spam"
         if (memoizedSpamDist.getPerturb(point) > memoizedHamDist.getPerturb(point)) "spam" else "ham"
 
 
@@ -211,6 +205,8 @@ val hamPartitions = trainingVectors.filter { it.label == "ham" }
 //            .eachCount()
 //            .maxBy { it.value }!!.key
     }
+
+
 
 }
 

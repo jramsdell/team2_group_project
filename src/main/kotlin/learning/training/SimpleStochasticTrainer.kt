@@ -8,6 +8,7 @@ import learning.GhettoKDTree
 import org.apache.lucene.search.IndexSearcher
 import utils.*
 import java.lang.Double.sum
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.ln
 import kotlin.math.pow
 
@@ -16,13 +17,14 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
     val trainingComponent = TrainingVectorComponent(searcher)
 
     fun convertResult(weights: List<Double>, emails: List<EmailSparseVector>): EmailSparseVector {
-        val finalComponents = HashMap<String, Double>()
+        val finalComponents = ConcurrentHashMap<String, Double>()
         val wNorm = weights.sumByDouble { it.pow(2.0) }
-        emails.zip(weights).forEach { (e, weight) ->
+        emails.zip(weights).forEachParallel { (e, weight) ->
             if (weight != 0.0) {
-                val vNorm = e.components.values.sumByDouble { it.pow(2.0) }
-                e.components.forEach { (k,v) ->
-                    finalComponents.merge(k, v * weight , ::sum)
+                val eC = e.components.normalize()
+                val vNorm = eC.values.sumByDouble { it.pow(2.0) }
+                eC.forEach { (k,v) ->
+                    finalComponents.merge(k,  (v / vNorm) * weight , ::sum)
                 }
             }
         }
@@ -30,8 +32,8 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
     }
 
     fun convertResult2(weights: List<Double>, emails: List<EmailSparseVector>): EmailSparseVector {
-        val finalComponents = HashMap<String, Double>()
-        emails.zip(weights).forEach { (e, weight) ->
+        val finalComponents = ConcurrentHashMap<String, Double>()
+        emails.zip(weights).forEachParallel { (e, weight) ->
             if (weight != 0.0) {
                 val eC = e.components.normalize()
                 eC.forEach { (k,v) ->
@@ -41,6 +43,7 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
         }
         return EmailSparseVector(label = "", components = finalComponents, id = "")
     }
+
 
     fun rerunResult(e: EmailSparseVector, stochastic: StochasticComponent) {
         val newEmbedded = trainingComponent.vectors.map { trainingComponent.embed(it, listOf(e)) }
@@ -59,8 +62,23 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
 
     }
 
+    fun nextLayer(curLayer: List<EmailSparseVector>, nChunks: Int) = curLayer
+    .shuffled()
+    .apply { println("====NEXT====\n\n") }
+    .chunked(nChunks)
+    .flatMap { emails ->
+        val embedded = trainingComponent.vectors.map { trainingComponent.embed(it, emails) }
+        val holdout = trainingComponent.holdout.map { trainingComponent.embed(it, emails) }
+
+        val stochastic = StochasticComponent(emails.size, embedded, holdout)
+        val weights = stochastic.doTrain()
+        emails.filterIndexed { index, e -> weights[index] != 0.0  }
+
+    }
+
+
     fun doTrain() {
-        val results = (0 until trainingComponent.basisCollection.size).take(1).map { index ->
+        val results = (0 until trainingComponent.basisCollection.size).map { index ->
             val embedded = trainingComponent.vectors.map { trainingComponent.embed(it, trainingComponent.basisCollection[index]) }
             val holdout = trainingComponent.holdout.map { trainingComponent.embed(it, trainingComponent.basisCollection[index]) }
 
@@ -68,18 +86,20 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
 
             val weights = stochastic.doTrain()
             val e = convertResult2(weights, trainingComponent.basisCollection[index])
-            rerunResult(e, stochastic)
+//            rerunResult(e, stochastic)
+//            trainingComponent.basisCollection[index].filterIndexed { i, e -> weights[i] != 0.0   }
+            e
         }
+//            .run { nextLayer(this, ) }
+//            .run { nextLayer(this, 70) }
+//            .run { nextLayer(this, 100) }
 
-//        val embedded = trainingComponent.vectors.map { trainingComponent.embed(it, results) }
-//        val holdout = trainingComponent.holdout.map { trainingComponent.embed(it, results) }
-//
-//        val stochastic = StochasticComponent(results.size, embedded, holdout)
-//
-//        val weights = stochastic.doTrain()
-//        val e = convertResult(weights, results)
-//
-//        rerunResult(e, stochastic)
+        val embedded = trainingComponent.vectors.map { trainingComponent.embed(it, results) }
+        val holdout = trainingComponent.holdout.map { trainingComponent.embed(it, results) }
+        val stochastic = StochasticComponent(results.size, embedded, holdout)
+        val weights = stochastic.doTrain(winnow = false, nIterations = 60000)
+        val e = convertResult(weights, results)
+        rerunResult(e, stochastic)
 
     }
 
