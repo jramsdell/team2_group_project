@@ -50,7 +50,7 @@ class StochasticComponent(val nBasis: Int,
         val spamDist = createNormalDist(w2, spamVectors)
         val hamDist = createNormalDist(w2, hamVectors)
         val transformed = (spamVectors + hamVectors).map { SimilarityFuns.dotProduct(it, w2) }
-        return getDistance3(spamDist, hamDist, transformed)
+        return getDistance4(spamDist, hamDist, transformed)
     }
 
     fun rbfF1Score(weights: List<Double>): Double {
@@ -104,6 +104,41 @@ class StochasticComponent(val nBasis: Int,
 
         return d1 +  d2 + d3
     }
+
+    fun kld(d1: List<Double>, d2: List<Double>): Double = d1.zip(d2).sumByDouble { (v1, v2) ->
+        v1 * Math.log(v1 / v2)
+    }
+
+    fun symKldDist(d1: List<Double>, d2: List<Double>): Double = d1.zip(d2).sumByDouble { (v1, v2) ->
+        val div1 = (v1 * Math.log(v1) + v2 * Math.log(v2))
+        val div2 = (v1 + v2) * Math.log(v1 + v2)
+        div1 - div2
+    }
+
+    fun symKldDist2(d1: List<Double>, d2: List<Double>): Double {
+        val midpoint = d1.zip(d2).map { it.first * 0.5 + it.second * 0.5 }
+        return kld(d1, midpoint) + kld(d2, midpoint)
+    }
+
+    fun symKldDist3(d1: List<Double>, d2: List<Double>): Double {
+        val midpoint = d1.zip(d2).map { it.first * 0.5 + it.second * 0.5 }
+        return kld(d1, midpoint) * 0.5 + kld(d2, midpoint) * 0.5
+    }
+
+    fun getDistance4(dist1: NormalDistribution, dist2: NormalDistribution, points: List<Double>): Double {
+        val lf1 = points.map { (dist1.getPerturb(it))}.normalize()
+        val lf2 = (points).map { (dist2.getPerturb(it))}.normalize()
+
+        val d1 = symKldDist3(lf1, lf2)
+
+        val uniform = points.map { 1.0  }.normalize()
+        val d3 = -symKldDist3(lf1, uniform)
+        val d4 = -symKldDist3(lf2, uniform)
+
+
+        return d1 + (d3 + d4)
+    }
+
 
 
     fun NormalDistribution.getInvDist(point: Double): Double {

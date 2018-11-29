@@ -19,7 +19,7 @@ private data class StepResult(
         val gradient: Double
 )
 
-private fun List<Double>.transform() = this.cosine()
+private fun List<Double>.transform() = this.normalize()
 
 
 class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, val onlyPos: Boolean = false, val useDist: Boolean = true, val endFun: (() -> Unit)? = null, val winnow: Boolean = true) {
@@ -36,14 +36,17 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
 //        val steps = listOf(-0.00001, -0.0001, -0.001, -0.01, 0.0, -0.05, -0.25, 0.001, 0.0001, 0.00001, 0.01, 0.05, 0.25)
 //        val steps = listOf(-0.0001, -0.001, -0.01, 0.0, -0.05, -0.25, 0.001, 0.0001, 0.01, 0.05, 0.25)
 //        val steps = listOf(-0.0001, -0.001, -0.01, 0.0, -0.05, 0.001, 0.0001, 0.01, 0.05)
-        val steps = listOf(-0.0001, -0.001, -0.01, 0.0, -0.05, 0.001, 0.0001, 0.01, 0.05, -weights[feature], -0.00001, 0.00001)
+//        val steps = listOf(-0.0001, -0.001, -0.01, 0.0, -0.05, 0.001, 0.0001, 0.01, 0.05, -weights[feature], -(weights[feature] * 2), weights[feature] * 0.5, -weights[feature] * 0.5)
+//        val steps = listOf(-0.0001, -0.001, -0.01, 0.0, -0.05, 0.001, 0.0001, 0.01, 0.05, -weights[feature], -(weights[feature] * 2), weights[feature] * 0.5, -weights[feature] * 0.5)
+        val steps = listOf(-0.0001, -0.001, -0.01, 0.0, -0.05, 0.001, 0.0001, 0.01, 0.05, -weights[feature], -(weights[feature] * 2))
+//        val steps = listOf(-0.0001, -0.001, -0.01, 0.0, -0.05, 0.001, 0.0001, 0.01, 0.05, -(weights[feature] * 2))
 //        val steps = listOf(-0.0001, -0.001, -0.01, 0.0, -0.05, -0.25, 0.001, 0.0001, 0.01, 0.05, 0.25)
 //        val steps = listOf(-0.001, -0.01, 0.0, -0.05, -0.25, 0.001,0.01, 0.05, 0.25)
 //            .filter { it.absoluteValue <= lastStep[feature]!!.absoluteValue }
 
         return steps.pmap { step ->
             val nWeights = weights.mapIndexed { fIndex, value -> if(feature == fIndex) value + step else value    }.transform()
-            step to scoreFun(nWeights) - base }
+            step to (scoreFun(nWeights) - base).run { if(step == -weights[feature]) this   else this } }
             .maxBy { it.second }!!
     }
 
@@ -79,8 +82,8 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
 //    }
 
     fun doStep2() {
-//        val base = scoreFun(weights)
-        curScore = scoreFun(weights)
+        curScore = scoreFun(weights.transform())
+//        curScore = scoreFun(weights)
         val next = priorities.poll()
         if (weights[next.feature] == 0.0) {
             return
@@ -91,15 +94,15 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
         val result = getPartialGradient(next.feature, curScore)
 //        println(result.second)
 
-        if (result.first == 0.0 && result.second == 0.0) {
-//            converged.set(true)
-//            println("Converged!")
-            return
-        }
+//        if (result.first == 0.0 && result.second == 0.0) {
+////            converged.set(true)
+////            println("Converged!")
+//            return
+//        }
 
 
         weights = weights.mapIndexed { index, value -> if (index == next.feature) value + result.first else value  }
-            .transform()
+//            .transform()
 
         lastStep[next.feature] = result.first
         val newResult = StepResult(feature = next.feature, step = result.first, gradient = result.second)
@@ -118,9 +121,11 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
                     doStep2()
                     endFun?.invoke()
 //                    if (it > 100) {
-//                        val cutoff = 1 / (weights.map { it.absoluteValue }.sum() * 2)
+////                        val cutoff = 1 / (weights.map { it.absoluteValue }.sum() * 2)
+//                        val cutoff = 1.0 / (weights.count { it != 0.0 } * 2)
 //                        weights = weights.mapIndexed { index, value ->
-//                            if ((-cutoff < value && value < cutoff) && lastStep[index]!! < 0.001 && lastStep[index]!! > -0.001 && curStep == index) (if (winnow) 0.0 else value) else value }
+////                            if ((-cutoff < value && value < cutoff) && lastStep[index]!! < 0.001 && lastStep[index]!! > -0.001 && curStep == index) (if (winnow) 0.0 else value) else value }
+//                        if ((-cutoff < value && value < cutoff) && lastStep[index]!! < 0.001 && lastStep[index]!! > -0.001 && curStep == index) (if (winnow) 0.0 else value) else value }
 ////                        if ((-0.0000001 < value && value < 0.000000001) && lastStep[index]!! < 0.000001 && lastStep[index]!! > -0.0000001) (if (winnow) 0.0 else value) else value }
 ////                            if ((-0.001 < value && value < 0.001) && lastStep[index]!! < 0.01 && lastStep[index]!! > -0.01) (if (winnow) 0.0 else value) else value }
 //                    }
@@ -128,7 +133,6 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
                         weightUser?.invoke(weights)
                         val count = weights.count { it != 0.0 }
                         println("$count : $curScore")
-                        println(weights)
                     }
                 }
             }

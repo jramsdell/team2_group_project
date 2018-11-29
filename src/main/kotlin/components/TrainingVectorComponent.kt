@@ -12,7 +12,7 @@ import kotlin.collections.ArrayList
 
 
 class TrainingVectorComponent(val searcher: IndexSearcher) {
-    var nBases = 50
+    var nBases = 30
     var nSets = 5
     val vectors = ArrayList<EmailSparseVector>()
 //    val hamMatrix = (0 until 50).map { ArrayList<Double>() }
@@ -84,31 +84,6 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
 
         return bases
     }
-
-    fun getF1(caller: (EmailSparseVector) -> String): Double {
-        var tp = AtomicDouble(0.0)
-        var tn = AtomicDouble(0.0)
-        var fn = AtomicDouble(0.0)
-        var fp = AtomicDouble(0.0)
-
-        holdout.forEachParallel { v ->
-            val called = caller(v)
-            if (v.label == "spam" && called == "spam") { tp.addAndGet(1.0) }
-            else if (v.label == "spam" && called == "ham") { fn.addAndGet(1.0) }
-            else if (v.label == "ham" && called == "ham") { tn.addAndGet(1.0) }
-            else { fp.addAndGet(1.0) }
-        }
-
-        val precision = tp.toDouble() / (tp.get() + fp.get())
-        val recall = tp.toDouble() / (tp.get() + fn.get())
-        val f1 = (2 * (precision * recall) / (precision + recall)).run { if(isNaN()) 0.0 else this }
-        val precision2 = tn.toDouble() / (tn.get() + fn.get())
-        val recall2 = tn.toDouble() / (tn.get() + fp.get())
-        val f2 = (2 * (precision2 * recall2) / (precision2 + recall2)).run { if(isNaN()) 0.0 else this }
-
-        return (f1 + f2) / 2.0
-    }
-
 
     private fun train() {
         val nDocs = searcher.indexReader.numDocs()
@@ -201,17 +176,15 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
 //        val transformedComponents = basisCollection[basisIndex].mapIndexed { index, basis ->
             val transformedComponents = bVectors.flatMap { basis ->
 //            val key = index.toString()
-            val result1 = kernel.sim(v, basis)
-            val result2 = kernel2.sim(v, basis)
-//                val result3 = kernel3.sim(v, basis)
-//                val result4 = kernel4.sim(v, basis)
-//                val result5 = kernel5.sim(v, basis)
-//                val result6 = kernel6.sim(v, basis)
-//            val result = Math.max(kernel.sim(v, basis), kernel2.sim(v, basis))
-//                listOf(result1, result2, result3, result4) }
-        listOf(result1, result2) }
-//        listOf(result1, result2, result5, result6) }
-//        listOf(result1, result2)}
+                val results = listOf(
+                        kernel.sim(v, basis),
+                        kernel2.sim(v, basis),
+                        kernel3.sim(v, basis),
+                        kernel4.sim(v, basis),
+                        kernel5.sim(v, basis),
+                        kernel6.sim(v, basis)
+                )
+        results }
                 .mapIndexed { index, d -> index.toString() to d  }
                 .toMap()
 
