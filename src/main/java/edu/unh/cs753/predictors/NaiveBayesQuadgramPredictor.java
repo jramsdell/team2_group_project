@@ -5,6 +5,7 @@ import edu.unh.cs753.utils.SearchUtils;
 import org.apache.lucene.search.IndexSearcher;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class NaiveBayesQuadgramPredictor extends LabelPredictor {
@@ -26,7 +27,11 @@ public class NaiveBayesQuadgramPredictor extends LabelPredictor {
 
     @Override
     public String predict(List<String> tokens) {
-        return bc.classifyWithTrigrams(tokens);
+        return bc.classifyWithQuadgrams(tokens);
+    }
+
+    public ArrayList<Double> getScores(List<String> tokens) {
+        return bc.getQuadramScores(tokens);
     }
 
     public static void main(String[] args) throws IOException {

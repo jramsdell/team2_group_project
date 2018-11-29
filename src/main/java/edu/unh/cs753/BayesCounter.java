@@ -351,14 +351,13 @@ public class BayesCounter {
         double spamScore = 0;
 
         for (int i = 0; i < tokens.size() - 3; i++) {
-            String trigram = tokens.get(i) + tokens.get(i + 1) + tokens.get(i + 2) + tokens.get(i + 3);
-            spamScore += Math.log(spamDist.getOrDefault(trigram, 1));
-            hamScore += Math.log(hamDist.getOrDefault(trigram, 1));
+            String quadgram = tokens.get(i) + tokens.get(i + 1) + tokens.get(i + 2) + tokens.get(i + 3);
+            spamScore += Math.log(spamDist.getOrDefault(quadgram, 1));
+            hamScore += Math.log(hamDist.getOrDefault(quadgram, 1));
         }
 
         scores.add(hamScore);
         scores.add(spamScore);
         return scores;
     }
-
 }
