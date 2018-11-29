@@ -27,10 +27,11 @@ public class BM25Predictor extends LabelPredictor {
         // You will want to replace this with your actual classification method
         List<String> tokenSubset = tokens.subList(0, Math.min(10, tokens.size()));
         Query q = SearchUtils.createStandardBooleanQuery(String.join(" ", tokenSubset), "text");
+        int ham = 0;
+        int spam = 0;
         try {
             TopDocs topDocs = searcher.search(q, 11);
-            int ham = 0;
-            int spam = 0;
+
             for ( ScoreDoc sd : topDocs.scoreDocs) {
                 Document doc = searcher.doc(sd.doc);
                 String label = doc.get("label");
@@ -41,17 +42,17 @@ public class BM25Predictor extends LabelPredictor {
                     spam += 1;
                 }
 
-                if (ham > spam) {
-                    return "ham";
-                } else {
-                    return "spam";
-                }
+
 
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return "ham";
+        if (ham > spam) {
+            return "ham";
+        } else {
+            return "spam";
+        }
     }
 
 
@@ -61,8 +62,8 @@ public class BM25Predictor extends LabelPredictor {
         // This is where you test out your predictor by running evaluate
         // Make sure you created "parsed_emails.tsv" and the lucene index! See: DebugHelper
         IndexSearcher searcher = SearchUtils.createIndexSearcher("index");
-        LabelPredictor predictor = new BM25Predictor(searcher);
-        predictor.evaluate();
+        BM25Predictor pre = new BM25Predictor(searcher);
+        pre.evaluate();
     }
 
 }
