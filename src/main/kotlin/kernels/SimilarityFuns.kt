@@ -3,6 +3,7 @@ package kernels
 import containers.EmailSparseVector
 import info.debatty.java.stringsimilarity.*
 import utils.*
+import java.lang.Double.sum
 import kotlin.math.absoluteValue
 import kotlin.math.pow
 
@@ -63,25 +64,49 @@ object SimilarityFuns {
     }
 
     fun simComponentDotCovariance(v1: EmailSparseVector, v2: EmailSparseVector, covarianceMap: HashMap<String, HashMap<String, Double>>): Double {
-//        val keys = v1.components.keys.union(v2.components.keys)
-//        val v1Norm = v1.components.takeMostFrequent(5)
-//        val v2Norm = v2.components.takeMostFrequent(5)
-
         var score = 0.0
+        var score2 = 0.0
+        val keys = v1.components.keys.union(v2.components.keys)
+//        keys.forEach {  k1 ->
+//            val dist = covarianceMap[k1]
+//            if (dist != null) {
+//                keys.forEach { k2 ->
+//                    score += (dist[k2] ?: 0.0)
+//                }
+//            }
+//
+//        }
 
         v1.components.forEach { (k,v) ->
             val dist = covarianceMap[k]
             if (dist != null) {
                 v2.components.forEach { (k2, v2) ->
-                    score +=  (dist[k2] ?: 0.0)
+                    score +=  (dist[k2] ?: 0.0) * (v2 - v).absoluteValue
                 }
             }
         }
+////        println(score)
+//
+//        v2.components.forEach { (k,v) ->
+//            val dist = covarianceMap[k]
+//            if (dist != null) {
+//                v1.components.forEach { (k2, v2) ->
+//                    score2 +=  (dist[k2] ?: 0.0) * (v2 - v).absoluteValue
+//                }
+//            }
+//        }
 
+//        score /= v1.components.size
+//        score2 /= v2.components.size
 
-        return score
-
+        return score + score2
     }
+
+//    fun myKld(d1: HashMap<String, Double>, d2: HashMap<String, Double>): Double {
+//        d1.keys.intersect(d2.keys)
+//            .forEach { () }
+//    }
+
 
     fun simComponentString(v1: EmailSparseVector, v2: EmailSparseVector): Double {
         val sim = NormalizedLevenshtein()
@@ -107,6 +132,15 @@ object SimilarityFuns {
         return results.defaultWhenNotFinite(0.0) + results2.defaultWhenNotFinite(0.0)
     }
 
+//    private fun kld(d1: List<Double>, d2: List<Double>): Double = d1.zip(d2).sumByDouble { (v1, v2) ->
+//        v1 * Math.log(v1 / v2)
+//    }
+//
+//    private fun symKldDist3(d1: List<Double>, d2: List<Double>): Double {
+//        val midpoint = d1.zip(d2).map { it.first * 0.5 + it.second * 0.5 }
+//        return kld(d1, midpoint) * 0.5 + kld(d2, midpoint) * 0.5
+//    }
+
     fun simComponentDotKld(v1: EmailSparseVector, v2: EmailSparseVector): Double {
         val keys = v1.components.keys.union(v2.components.keys)
         val v1Norm = v1.components.normalize()
@@ -115,8 +149,24 @@ object SimilarityFuns {
         return keys.sumByDouble { key ->
             val v1Component = v1Norm[key] ?: 0.0
             val v2Component = v2Norm[key] ?: 0.0
-            val k1 = v1Component * Math.log(v1Component / v2Component).defaultWhenNotFinite(0.0)
-            val k2 = v2Component * Math.log(v2Component / v1Component).defaultWhenNotFinite(0.0)
+            val vMid = v1Component * 0.5 + v2Component * 0.5
+            val k1 = v1Component * Math.log(v1Component / vMid).defaultWhenNotFinite(0.0)
+            val k2 = v2Component * Math.log(v2Component / vMid).defaultWhenNotFinite(0.0)
+            ((k1 + k2) / 2.0).defaultWhenNotFinite(0.0)
+        }
+    }
+
+    fun simComponentDotKldBigram(v1: EmailSparseVector, v2: EmailSparseVector): Double {
+        val keys = v1.bigrams.keys.union(v2.bigrams.keys)
+        val v1Norm = v1.bigrams.normalize()
+        val v2Norm = v2.bigrams.normalize()
+
+        return keys.sumByDouble { key ->
+            val v1Component = v1Norm[key] ?: 0.0
+            val v2Component = v2Norm[key] ?: 0.0
+            val vMid = v1Component * 0.5 + v2Component * 0.5
+            val k1 = v1Component * Math.log(v1Component / vMid).defaultWhenNotFinite(0.0)
+            val k2 = v2Component * Math.log(v2Component / vMid).defaultWhenNotFinite(0.0)
             ((k1 + k2) / 2.0).defaultWhenNotFinite(0.0)
         }
     }

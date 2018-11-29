@@ -44,6 +44,43 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
         return EmailSparseVector(label = "", components = finalComponents, id = "")
     }
 
+    fun convertResult3(weights: List<Double>, emails: List<EmailSparseVector>): EmailSparseVector {
+        val nBasis = weights.size / emails.size
+
+        val finalComponents = ConcurrentHashMap<String, Double>()
+        val finalBigrams = ConcurrentHashMap<String, Double>()
+
+
+        weights.chunked(nBasis)
+            .forEachIndexed { index, chunk ->
+                val e = emails[index]
+                val eC = e.components.normalize()
+                val eC2 = e.bigrams.normalize()
+
+                val v1 = chunk[0]
+//                val v2 = chunk[1]
+
+                if (v1 != 0.0) {
+                    eC.forEach { (k,v) ->
+                        finalComponents.merge(k, (v * (v1)) , ::sum)
+                    }
+                }
+
+//                if (v2 != 0.0) {
+//                    eC2.forEach { (k,v) ->
+//                        finalBigrams.merge(k, (v * v1) , ::sum)
+//                    }
+//                }
+
+
+            }
+
+
+
+        return EmailSparseVector(label = "", components = finalComponents, id = "", bigrams = finalBigrams)
+
+    }
+
 
     fun rerunResult(e: EmailSparseVector, stochastic: StochasticComponent) {
         val newEmbedded = trainingComponent.vectors.map { trainingComponent.embed(it, listOf(e)) }
@@ -52,12 +89,14 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
         val newSpam = newEmbedded.filter { it.label == "spam" }
         val newHam = newEmbedded.filter { it.label == "ham" }
 
+        val w = listOf(1.0, 1.0)
+
         stochastic.holdout = newHoldout
         stochastic.hamVectors = newHam
         stochastic.spamVectors = newSpam
-        stochastic.memoizedSpamDist = stochastic.createNormalDist(listOf(1.0), newSpam)
-        stochastic.memoizedHamDist = stochastic.createNormalDist(listOf(1.0), newHam)
-        val labeler = stochastic.myLabeler(listOf(1.0))
+        stochastic.memoizedSpamDist = stochastic.createNormalDist(w, newSpam)
+        stochastic.memoizedHamDist = stochastic.createNormalDist(w, newHam)
+        val labeler = stochastic.myLabeler(w)
         println("RESULT: ${stochastic.getF1(labeler)}")
 
     }
@@ -79,16 +118,14 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
 
     fun doTrain() {
         val results = (0 until trainingComponent.basisCollection.size).map { index ->
-            if (index > 0) {
                 val embedded = trainingComponent.vectors.map { trainingComponent.embed(it, trainingComponent.basisCollection[index]) }
                 val holdout = trainingComponent.holdout.map { trainingComponent.embed(it, trainingComponent.basisCollection[index]) }
 
                 val stochastic = StochasticComponent(embedded.first().components.size, embedded, holdout)
 
-                val weights = stochastic.doTrain(true, 10000)
-            }
-//            rerunResult(e, stochastic)
-//            trainingComponent.basisCollection[index].filterIndexed { i, e -> weights[i] != 0.0   }
+                val weights = stochastic.doTrain(true, 600)
+            val e = convertResult3(weights, trainingComponent.basisCollection[index])
+            rerunResult(e, stochastic)
 
 //            val e = convertResult2(weights, trainingComponent.basisCollection[index])
 //            e

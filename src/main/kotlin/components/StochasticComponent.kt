@@ -150,6 +150,8 @@ class StochasticComponent(val nBasis: Int,
     fun NormalDistribution.getPerturb(point: Double): Double {
         val dist = (point - mean).absoluteValue
         val p1 = probability(mean - dist, mean + dist)
+//        return Math.pow(1.0 - p1, 1/3.0)
+//        return Math.exp(1.0 - p1)
         return 1.0 - p1
     }
 

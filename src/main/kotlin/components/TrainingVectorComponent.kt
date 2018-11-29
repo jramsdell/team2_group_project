@@ -12,7 +12,7 @@ import kotlin.collections.ArrayList
 
 
 class TrainingVectorComponent(val searcher: IndexSearcher) {
-    var nBases = 30
+    var nBases = 60
     var nSets = 5
     val vectors = ArrayList<EmailSparseVector>()
 //    val hamMatrix = (0 until 50).map { ArrayList<Double>() }
@@ -28,12 +28,15 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
     val extras = ArrayList<EmailSparseVector>()
     val coMap = HashMap<String, HashMap<String, Double>>()
 //    val kernel = SoftplusKernel({ e1, e2 -> SimilarityFuns.simComponentDotCovariance(e1, e2, coMap)})
-    val kernel = SoftplusKernel(SimilarityFuns::simBigramCosine)
-    val kernel2 = SoftplusKernel(SimilarityFuns::simComponentCosine)
-    val kernel3 = SoftplusKernel(SimilarityFuns::simComponentDot)
-    val kernel4 = SoftplusKernel(SimilarityFuns::simBigramDot)
+val kernel = SoftplusKernel(SimilarityFuns::simComponentCosine)
+    val kernel2 = SoftplusKernel(SimilarityFuns::simBigramCosine)
+//    val kernel3 = SoftplusKernel(SimilarityFuns::simComponentDot)
+        val kernel3 = SoftplusKernel({ e1, e2 -> SimilarityFuns.simComponentDotCovariance(e1, e2, coMap)})
+    val kernel4 = SoftplusKernel(SimilarityFuns::simComponentDotKld)
+//    val kernel4 = SoftplusKernel(SimilarityFuns::sim)
     val kernel5 = SoftplusKernel(SimilarityFuns::simOverlap)
     val kernel6 = SoftplusKernel(SimilarityFuns::simBigramOverlap)
+    val kernel7 = SoftplusKernel(SimilarityFuns::simComponentDotKldBigram)
 
     init {
         train()
@@ -42,11 +45,10 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
     }
 
     fun getCovariance() {
-
         vectors.forEach { vector ->
             val mostFreq = vector.components.takeMostFrequent(5)
-            mostFreq.forEach { c1, d1 ->
-                mostFreq.forEach { c2, d2 ->
+            mostFreq.forEach { (c1, d1) ->
+                mostFreq.forEach { (c2, d2) ->
                     if (c1 !in coMap)
                         coMap[c1] = HashMap()
 
@@ -54,40 +56,15 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
                 }
                 val total = coMap[c1]!!.values.sum()
                 coMap[c1]!!.forEach { (k,v) -> coMap[c1]!![k] = v / total }
-//                coMap[c1]!! = coMap[c1]!!.normalize()
             }
         }
 
     }
 
-    fun findOrthogonal(): ArrayList<EmailSparseVector> {
-        val nDocs = searcher.indexReader.numDocs()
-        var randomDocs = (0 until nDocs).shuffled(Random(21)).take(5000)
-            .map(this::extractEmail)
-            .filter { it.components.values.sum() > 200 }
-
-        val bases = ArrayList<EmailSparseVector>()
-        bases.add(randomDocs.first())
-
-        randomDocs = randomDocs.drop(1)
-
-        while (bases.size < 10) {
-            val nextBase = randomDocs.withIndex().minBy { (index, doc) ->
-                bases.map { base ->
-                    SimilarityFuns.simOverlap(doc, base) }
-                    .max()!!
-            }!!
-
-            bases.add(nextBase.value)
-            randomDocs = randomDocs.filterIndexed { index, emailSparseVector -> index != nextBase.index  }
-        }
-
-        return bases
-    }
 
     private fun train() {
         val nDocs = searcher.indexReader.numDocs()
-        var nElements = 2000
+        var nElements = 1000
         var randomDocs = (0 until nDocs).shuffled(Random(21)).take(nElements)
 //            .map(this::extractEmail)
             .pmap { extractEmail(it) }
@@ -148,8 +125,9 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
 
         val dist2 = doc.get("text")
             .split(" ")
+//            .flatMap { createCharacterGrams(it, 4) }
+            .run { createBigrams(this) }
 //            .flatMap { createCharacterGrams(it, 3) }
-//            .run { createBigrams(this) }
             .groupingBy { it }
             .eachCount()
             .map { it.key to it.value.toDouble() }
@@ -177,12 +155,13 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
             val transformedComponents = bVectors.flatMap { basis ->
 //            val key = index.toString()
                 val results = listOf(
-                        kernel.sim(v, basis),
-                        kernel2.sim(v, basis),
-                        kernel3.sim(v, basis),
-                        kernel4.sim(v, basis),
-                        kernel5.sim(v, basis),
-                        kernel6.sim(v, basis)
+                        kernel.sim(v, basis)
+//                        kernel2.sim(v, basis)
+//                        kernel3.sim(v, basis)
+//                        kernel4.sim(v, basis)
+//                        kernel5.sim(v, basis)
+//                        kernel6.sim(v, basis)
+//                        kernel7.sim(v, basis)
                 )
         results }
                 .mapIndexed { index, d -> index.toString() to d  }
