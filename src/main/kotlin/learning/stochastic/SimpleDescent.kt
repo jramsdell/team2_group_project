@@ -29,13 +29,14 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
     private val priorities = PriorityQueue<StepResult>(kotlin.Comparator { t1, t2 -> -compareValues(t1.gradient, t2.gradient)  })
     var lastStep = (0 until nFeatures).map { it to 1.0 }.toHashMap()
     var curScore = 0.0
+    var curStep = 0
 
     fun getPartialGradient(feature: Int, base: Double): Pair<Double, Double> {
 //        val curVal = weights[index]
 //        val steps = listOf(-0.00001, -0.0001, -0.001, -0.01, 0.0, -0.05, -0.25, 0.001, 0.0001, 0.00001, 0.01, 0.05, 0.25)
 //        val steps = listOf(-0.0001, -0.001, -0.01, 0.0, -0.05, -0.25, 0.001, 0.0001, 0.01, 0.05, 0.25)
 //        val steps = listOf(-0.0001, -0.001, -0.01, 0.0, -0.05, 0.001, 0.0001, 0.01, 0.05)
-        val steps = listOf(-0.0001, -0.001, -0.01, 0.0, -0.05, 0.001, 0.0001, 0.01, 0.05)
+        val steps = listOf(-0.0001, -0.001, -0.01, 0.0, -0.05, 0.001, 0.0001, 0.01, 0.05, -weights[feature], -0.00001, 0.00001)
 //        val steps = listOf(-0.0001, -0.001, -0.01, 0.0, -0.05, -0.25, 0.001, 0.0001, 0.01, 0.05, 0.25)
 //        val steps = listOf(-0.001, -0.01, 0.0, -0.05, -0.25, 0.001,0.01, 0.05, 0.25)
 //            .filter { it.absoluteValue <= lastStep[feature]!!.absoluteValue }
@@ -85,6 +86,8 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
             return
         }
 
+        curStep = next.feature
+
         val result = getPartialGradient(next.feature, curScore)
 //        println(result.second)
 
@@ -96,7 +99,6 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
 
 
         weights = weights.mapIndexed { index, value -> if (index == next.feature) value + result.first else value  }
-//            .normalize()
             .transform()
 
         lastStep[next.feature] = result.first
@@ -115,15 +117,18 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
 
                     doStep2()
                     endFun?.invoke()
-                    if (it > 100) {
-                        weights = weights.mapIndexed { index, value ->
-                            if ((-0.05 < value && value < 0.05) && lastStep[index]!! < 0.01 && lastStep[index]!! > -0.01) (if (winnow) 0.0 else value) else value }
-//                            if ((-0.001 < value && value < 0.001) && lastStep[index]!! < 0.01 && lastStep[index]!! > -0.01) (if (winnow) 0.0 else value) else value }
-                    }
+//                    if (it > 100) {
+//                        val cutoff = 1 / (weights.map { it.absoluteValue }.sum() * 2)
+//                        weights = weights.mapIndexed { index, value ->
+//                            if ((-cutoff < value && value < cutoff) && lastStep[index]!! < 0.001 && lastStep[index]!! > -0.001 && curStep == index) (if (winnow) 0.0 else value) else value }
+////                        if ((-0.0000001 < value && value < 0.000000001) && lastStep[index]!! < 0.000001 && lastStep[index]!! > -0.0000001) (if (winnow) 0.0 else value) else value }
+////                            if ((-0.001 < value && value < 0.001) && lastStep[index]!! < 0.01 && lastStep[index]!! > -0.01) (if (winnow) 0.0 else value) else value }
+//                    }
                     if (it % 100 == 99 || winnow == false) {
                         weightUser?.invoke(weights)
                         val count = weights.count { it != 0.0 }
                         println("$count : $curScore")
+                        println(weights)
                     }
                 }
             }

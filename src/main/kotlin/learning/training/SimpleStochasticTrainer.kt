@@ -79,29 +79,28 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
 
     fun doTrain() {
         val results = (0 until trainingComponent.basisCollection.size).map { index ->
-            val embedded = trainingComponent.vectors.map { trainingComponent.embed(it, trainingComponent.basisCollection[index]) }
-            val holdout = trainingComponent.holdout.map { trainingComponent.embed(it, trainingComponent.basisCollection[index]) }
+            if (index > 0) {
+                val embedded = trainingComponent.vectors.map { trainingComponent.embed(it, trainingComponent.basisCollection[index]) }
+                val holdout = trainingComponent.holdout.map { trainingComponent.embed(it, trainingComponent.basisCollection[index]) }
 
-            val stochastic = StochasticComponent(trainingComponent.nBases, embedded, holdout)
+                val stochastic = StochasticComponent(embedded.first().components.size, embedded, holdout)
 
-            val weights = stochastic.doTrain(true, 600)
-            val e = convertResult2(weights, trainingComponent.basisCollection[index])
+                val weights = stochastic.doTrain(true, 10000)
+            }
 //            rerunResult(e, stochastic)
 //            trainingComponent.basisCollection[index].filterIndexed { i, e -> weights[i] != 0.0   }
-            e
+
+//            val e = convertResult2(weights, trainingComponent.basisCollection[index])
+//            e
         }
 //            .run { nextLayer(this, ) }
 //            .run { nextLayer(this, 70) }
 //            .run { nextLayer(this, 100) }
 
-        val embedded = (trainingComponent.vectors + trainingComponent.extras).map { trainingComponent.embed(it, results) }
-//        val embedded = (trainingComponent.vectors).map { trainingComponent.embed(it, results) }
-        val holdout = trainingComponent.holdout.map { trainingComponent.embed(it, results) }
-
-        val stochastic = StochasticComponent(results.size, embedded, holdout)
-
-        val weights = stochastic.doTrain2(winnow = false, nIterations = 8)
-//        val weights = stochastic.doTrain3(winnow = false, nIterations = 600)
+//        val embedded = (trainingComponent.vectors + trainingComponent.extras).map { trainingComponent.embed(it, results) }
+//        val holdout = trainingComponent.holdout.map { trainingComponent.embed(it, results) }
+//        val stochastic = StochasticComponent(results.size, embedded, holdout)
+//        val weights = stochastic.doTrain2(winnow = false, nIterations = 8)
 
 //        val e = convertResult(weights, results)
 //        rerunResult(e, stochastic)

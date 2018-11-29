@@ -12,7 +12,7 @@ import kotlin.collections.ArrayList
 
 
 class TrainingVectorComponent(val searcher: IndexSearcher) {
-    var nBases = 30
+    var nBases = 50
     var nSets = 5
     val vectors = ArrayList<EmailSparseVector>()
 //    val hamMatrix = (0 until 50).map { ArrayList<Double>() }
@@ -24,12 +24,16 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
 
     val basisVectors = ArrayList<EmailSparseVector>()
     val basisCollection = ArrayList<List<EmailSparseVector>>()
-    val kernel = TanhKernel(SimilarityFuns::simComponentDot)
-    // 0.94989
     val holdout = ArrayList<EmailSparseVector>()
     val extras = ArrayList<EmailSparseVector>()
     val coMap = HashMap<String, HashMap<String, Double>>()
-    val kernel2 = SoftplusKernel({ e1, e2 -> SimilarityFuns.simComponentDotCovariance(e1, e2, coMap)})
+//    val kernel = SoftplusKernel({ e1, e2 -> SimilarityFuns.simComponentDotCovariance(e1, e2, coMap)})
+    val kernel = SoftplusKernel(SimilarityFuns::simBigramCosine)
+    val kernel2 = SoftplusKernel(SimilarityFuns::simComponentCosine)
+    val kernel3 = SoftplusKernel(SimilarityFuns::simComponentDot)
+    val kernel4 = SoftplusKernel(SimilarityFuns::simBigramDot)
+    val kernel5 = SoftplusKernel(SimilarityFuns::simOverlap)
+    val kernel6 = SoftplusKernel(SimilarityFuns::simBigramOverlap)
 
     init {
         train()
@@ -164,9 +168,20 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
             .groupingBy { it }
             .eachCount()
             .map { it.key to it.value.toDouble() }
+//            .map { it.key to Math.log(it.value.toDouble()) + 1.0 }
             .toMap()
 
-        return EmailSparseVector(label = label, components = dist, id = id)
+        val dist2 = doc.get("text")
+            .split(" ")
+//            .flatMap { createCharacterGrams(it, 3) }
+//            .run { createBigrams(this) }
+            .groupingBy { it }
+            .eachCount()
+            .map { it.key to it.value.toDouble() }
+//            .map { it.key to Math.log(it.value.toDouble()) + 1.0 }
+            .toMap()
+
+        return EmailSparseVector(label = label, components = dist, id = id, bigrams = dist2)
     }
 
 
@@ -176,23 +191,29 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
         token.windowed(n, 1, false)
 
     fun createBigrams(tokens: List<String>): List<String> =
-            tokens.windowed(2, 1, false)
-                .map { it[0] + it[1] }
+            tokens
+                .windowed(2, 1, false)
+                .map { it[0] + it[1]  }
 
 
 
     fun embed(v: EmailSparseVector, bVectors: List<EmailSparseVector>): EmailSparseVector {
 //        val transformedComponents = basisCollection[basisIndex].mapIndexed { index, basis ->
-            val transformedComponents = bVectors.mapIndexed { index, basis ->
-            val key = index.toString()
-//            val result = SimilarityFuns.simOverlap(v, basis)
-//            val result = SimilarityFuns.simComponentDot(basis, v)
-//            val result = kernel.sim(v, basis)
-            val result = kernel2.sim(v, basis)
-//            val result = SimilarityFuns.simComponentCosine(v, basis)
-//            println(result)
-            key to result
-        }.toMap()
+            val transformedComponents = bVectors.flatMap { basis ->
+//            val key = index.toString()
+            val result1 = kernel.sim(v, basis)
+            val result2 = kernel2.sim(v, basis)
+//                val result3 = kernel3.sim(v, basis)
+//                val result4 = kernel4.sim(v, basis)
+//                val result5 = kernel5.sim(v, basis)
+//                val result6 = kernel6.sim(v, basis)
+//            val result = Math.max(kernel.sim(v, basis), kernel2.sim(v, basis))
+//                listOf(result1, result2, result3, result4) }
+        listOf(result1, result2) }
+//        listOf(result1, result2, result5, result6) }
+//        listOf(result1, result2)}
+                .mapIndexed { index, d -> index.toString() to d  }
+                .toMap()
 
         return EmailSparseVector(label = v.label, components = transformedComponents, id = v.id)
     }

@@ -50,7 +50,7 @@ class StochasticComponent(val nBasis: Int,
         val spamDist = createNormalDist(w2, spamVectors)
         val hamDist = createNormalDist(w2, hamVectors)
         val transformed = (spamVectors + hamVectors).map { SimilarityFuns.dotProduct(it, w2) }
-        return getDistance2(spamDist, hamDist, transformed)
+        return getDistance3(spamDist, hamDist, transformed)
     }
 
     fun rbfF1Score(weights: List<Double>): Double {

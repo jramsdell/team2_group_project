@@ -38,10 +38,34 @@ object SimilarityFuns {
         }
     }
 
-    fun simComponentDotCovariance(v1: EmailSparseVector, v2: EmailSparseVector, covarianceMap: HashMap<String, HashMap<String, Double>>): Double {
+    fun simBigramDot(v1: EmailSparseVector, v2: EmailSparseVector): Double {
+        val keys = v1.bigrams.keys.union(v2.bigrams.keys)
+        val v1Norm = v1.bigrams.normalize()
+        val v2Norm = v2.bigrams.normalize()
+
+        return keys.sumByDouble { key ->
+            val v1Component = v1Norm[key] ?: 0.0
+            val v2Component = v2Norm[key] ?: 0.0
+            v1Component * v2Component
+        }
+    }
+
+    fun simComponentNonlinear(v1: EmailSparseVector, v2: EmailSparseVector): Double {
         val keys = v1.components.keys.union(v2.components.keys)
-        val v1Norm = v1.components
-        val v2Norm = v2.components
+        val v1Norm = v1.components.normalize()
+        val v2Norm = v2.components.normalize()
+
+        return keys.sumByDouble { key ->
+            val v1Component = v1Norm[key] ?: 0.0
+            val v2Component = v2Norm[key] ?: 0.0
+            v1Component.pow(2.0) * v2Component.pow(2.0)
+        }
+    }
+
+    fun simComponentDotCovariance(v1: EmailSparseVector, v2: EmailSparseVector, covarianceMap: HashMap<String, HashMap<String, Double>>): Double {
+//        val keys = v1.components.keys.union(v2.components.keys)
+//        val v1Norm = v1.components.takeMostFrequent(5)
+//        val v2Norm = v2.components.takeMostFrequent(5)
 
         var score = 0.0
 
@@ -49,7 +73,7 @@ object SimilarityFuns {
             val dist = covarianceMap[k]
             if (dist != null) {
                 v2.components.forEach { (k2, v2) ->
-                    score += dist[k2] ?: 0.0
+                    score +=  (dist[k2] ?: 0.0)
                 }
             }
         }
@@ -103,6 +127,11 @@ object SimilarityFuns {
         return (2 * keys.size.toDouble()) / (v1.components.keys.size + v2.components.keys.size)
     }
 
+    fun simBigramOverlap(v1: EmailSparseVector, v2: EmailSparseVector): Double {
+        val keys = v1.bigrams.keys.intersect(v2.bigrams.keys)
+        return (2 * keys.size.toDouble()) / (v1.bigrams.keys.size + v2.bigrams.keys.size)
+    }
+
     fun dotProduct(v1: EmailSparseVector, weights: List<Double>): Double {
         val keys = v1.components.keys
         return keys.sumByDouble { key ->
@@ -151,6 +180,21 @@ object SimilarityFuns {
 
         val v1Norm = v1.components.values.sumByDouble { it.pow(2) }.pow(0.5)
         val v2Norm = v2.components.values.sumByDouble { it.pow(2) }.pow(0.5)
+
+        return dotProduct / (v1Norm * v2Norm)
+    }
+
+
+    fun simBigramCosine(v1: EmailSparseVector, v2: EmailSparseVector): Double {
+        val keys = v1.bigrams.keys.union(v2.bigrams.keys)
+        val dotProduct =  keys.sumByDouble { key ->
+            val v1Component = v1.bigrams[key] ?: 0.0
+            val v2Component = v2.bigrams[key] ?: 0.0
+            v1Component * v2Component
+        }
+
+        val v1Norm = v1.bigrams.values.sumByDouble { it.pow(2) }.pow(0.5)
+        val v2Norm = v2.bigrams.values.sumByDouble { it.pow(2) }.pow(0.5)
 
         return dotProduct / (v1Norm * v2Norm)
     }
