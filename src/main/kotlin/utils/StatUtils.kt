@@ -22,6 +22,11 @@ fun <A, B: Number>Map<A, B>.normalize(): Map<A, Double> {
     return mapValues { (_, value) -> (value.toDouble() / total).defaultWhenNotFinite(0.0) }
 }
 
+fun <A, B: Number>Map<A, B>.cosine(): Map<A, Double> {
+    val total = values.sumByDouble { it.toDouble().pow(2.0) }
+    return mapValues { (_, value) -> (value.toDouble() / total).defaultWhenNotFinite(0.0) }
+}
+
 fun <A, B: Number>Map<A, B>.normalize2(): Map<A, Double> {
     val total = values.sumByDouble { it.toDouble().absoluteValue }
     return mapValues { (_, value) -> (value.toDouble() / total).defaultWhenNotFinite(0.0) }
@@ -87,6 +92,11 @@ fun<A> Iterable<A>.countDuplicates(): Map<A, Int> =
 fun Iterable<Double>.sd(): Double {
     val mean = average()
     return Math.sqrt(map { (it - mean).pow(2.0) }.average())
+}
+
+fun Iterable<Double>.sd(mean: Double): Double {
+    val results = this.toList()
+    return Math.sqrt(results.sumByDouble { (it - mean).pow(2.0) } / (results.size - 1.0))
 }
 
 fun List<Double>.cosine(): List<Double> {

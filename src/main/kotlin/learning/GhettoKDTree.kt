@@ -24,7 +24,7 @@ class GhettoKDTree(val trainingVectorComponent: TrainingVectorComponent) {
          println(candidates.size)
 
         return candidates.map { candidate ->
-            candidate to SimilarityFuns.simComponentL1Dist(email, candidate) }
+            candidate to SimilarityFuns.simComponentL1Dist(email.components, candidate.components) }
             .sortedBy { it.second }
             .first()
             .first
@@ -39,7 +39,7 @@ class GhettoKDTree(val trainingVectorComponent: TrainingVectorComponent) {
 
         return candidates.map { candidate ->
 //            candidate to SimilarityFuns.simComponentL1DistWeights(email, candidate, weights) }
-        candidate to SimilarityFuns.simComponentL2DistWeights(email, candidate, weights) }
+        candidate to SimilarityFuns.simComponentL2DistWeights(email.components, candidate.components, weights) }
             .sortedBy { it.second }
             .take(k)
             .map { it.first }
@@ -92,7 +92,7 @@ class GhettoKDTree(val trainingVectorComponent: TrainingVectorComponent) {
             .windowed(2, 1, false)
             .map { (v1, v2) ->
 //                val dist = SimilarityFuns.simComponentL1Dist(v1.first, v2.first).run { if (this == 0.0) 0.000001 else this  }
-                val dist = SimilarityFuns.simComponentL2Dist(v1.first, v2.first)
+                val dist = SimilarityFuns.simComponentL2Dist(v1.first.components, v2.first.components)
 //                val coordDist = (v1.second - v2.second).absoluteValue.run { if (this == 0.0) 0.000001 else this  }
                 val coordDist = (v1.second - v2.second).absoluteValue
                 val derivative = if (dist == coordDist) 1.0 else dist / coordDist

@@ -123,9 +123,9 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
 
                 val stochastic = StochasticComponent(embedded.first().components.size, embedded, holdout)
 
-                val weights = stochastic.doTrain(true, 600)
-            val e = convertResult3(weights, trainingComponent.basisCollection[index])
-            rerunResult(e, stochastic)
+                val weights = stochastic.doTrain(true, 1800)
+//            val e = convertResult2(weights, trainingComponent.basisCollection[index])
+//            rerunResult(e, stochastic)
 
 //            val e = convertResult2(weights, trainingComponent.basisCollection[index])
 //            e

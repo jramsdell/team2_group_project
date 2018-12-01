@@ -4,7 +4,9 @@ import com.google.common.util.concurrent.AtomicDouble
 import containers.EmailEmbeddedVector
 import containers.EmailSparseVector
 import kernels.*
+import org.apache.lucene.index.Term
 import org.apache.lucene.search.IndexSearcher
+import org.apache.lucene.search.TermQuery
 import utils.*
 import java.lang.Double.sum
 import java.util.*
@@ -12,7 +14,7 @@ import kotlin.collections.ArrayList
 
 
 class TrainingVectorComponent(val searcher: IndexSearcher) {
-    var nBases = 60
+    var nBases = 30
     var nSets = 5
     val vectors = ArrayList<EmailSparseVector>()
 //    val hamMatrix = (0 until 50).map { ArrayList<Double>() }
@@ -27,21 +29,43 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
     val holdout = ArrayList<EmailSparseVector>()
     val extras = ArrayList<EmailSparseVector>()
     val coMap = HashMap<String, HashMap<String, Double>>()
-//    val kernel = SoftplusKernel({ e1, e2 -> SimilarityFuns.simComponentDotCovariance(e1, e2, coMap)})
-val kernel = SoftplusKernel(SimilarityFuns::simComponentCosine)
+
+    val kernel = SoftplusKernel(SimilarityFuns::simComponentCosine)
     val kernel2 = SoftplusKernel(SimilarityFuns::simBigramCosine)
-//    val kernel3 = SoftplusKernel(SimilarityFuns::simComponentDot)
-        val kernel3 = SoftplusKernel({ e1, e2 -> SimilarityFuns.simComponentDotCovariance(e1, e2, coMap)})
+    val kernel3 = SoftplusKernel({ e1, e2 -> SimilarityFuns.simComponentDotCovariance(e1, e2, coMap)})
     val kernel4 = SoftplusKernel(SimilarityFuns::simComponentDotKld)
-//    val kernel4 = SoftplusKernel(SimilarityFuns::sim)
     val kernel5 = SoftplusKernel(SimilarityFuns::simOverlap)
     val kernel6 = SoftplusKernel(SimilarityFuns::simBigramOverlap)
     val kernel7 = SoftplusKernel(SimilarityFuns::simComponentDotKldBigram)
+
+
 
     init {
         train()
         basisVectors.clear()
         getCovariance()
+    }
+
+    fun doExpand() {
+
+        coMap.entries.forEach { (k,v) ->
+            val newMap = HashMap<String, Double>()
+            v.entries.forEach { (k2, v2) ->
+                coMap[k2]!!.entries.forEach { (k3, v3) ->
+                    newMap.merge(k3, v3 * v2, ::sum)
+//                    v.merge(k3, v3 * v2, ::sum)
+                }
+                newMap.merge(k2, v2, ::sum)
+            }
+
+            val total = newMap.values.sum()
+            v.clear()
+            newMap.forEach { (k2, v2) ->
+                v[k2] = v2 / total
+            }
+
+        }
+
     }
 
     fun getCovariance() {
@@ -51,13 +75,40 @@ val kernel = SoftplusKernel(SimilarityFuns::simComponentCosine)
                 mostFreq.forEach { (c2, d2) ->
                     if (c1 !in coMap)
                         coMap[c1] = HashMap()
+                    if (c2 !in coMap)
+                        coMap[c2] = HashMap()
 
                     coMap[c1]!!.merge(c2, d1 * d2, ::sum)
+//                    coMap[c2]!!.merge(c1, d1 * d2, ::sum)
                 }
-                val total = coMap[c1]!!.values.sum()
-                coMap[c1]!!.forEach { (k,v) -> coMap[c1]!![k] = v / total }
             }
         }
+
+//        val total = coMap.entries.sumByDouble { it.value.entries.sumByDouble { it.value } }
+//        val instances = HashMap<String, Double>()
+//
+//        coMap.entries.forEach { (k,v) ->
+//            v.entries.forEach { (k2, v2) ->
+//                instances.merge(k2, v2, ::sum)
+//            }
+//        }
+
+
+//        val final = instances
+//
+        coMap.entries.forEach { (k,v) ->
+            val total = v.values.sum()
+            v.forEach { (k2, v2) -> v[k2] = v2 / total }
+        }
+//
+//        doExpand()
+//        doExpand()
+//        doExpand()
+//        doExpand()
+//        doBackup()
+
+
+
 
     }
 
@@ -155,13 +206,13 @@ val kernel = SoftplusKernel(SimilarityFuns::simComponentCosine)
             val transformedComponents = bVectors.flatMap { basis ->
 //            val key = index.toString()
                 val results = listOf(
-                        kernel.sim(v, basis)
-//                        kernel2.sim(v, basis)
-//                        kernel3.sim(v, basis)
-//                        kernel4.sim(v, basis)
-//                        kernel5.sim(v, basis)
-//                        kernel6.sim(v, basis)
-//                        kernel7.sim(v, basis)
+                        kernel.sim(v.components, basis.components),
+                        kernel2.sim(v.bigrams, basis.bigrams),
+                        kernel3.sim(v.components, basis.components),
+                        kernel4.sim(v.components, basis.components),
+                        kernel5.sim(v.components, basis.components),
+                        kernel6.sim(v.bigrams, basis.bigrams),
+                        kernel7.sim(v.bigrams, basis.bigrams)
                 )
         results }
                 .mapIndexed { index, d -> index.toString() to d  }

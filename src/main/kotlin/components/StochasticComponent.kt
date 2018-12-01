@@ -3,12 +3,11 @@ package components
 import com.google.common.util.concurrent.AtomicDouble
 import containers.EmailEmbeddedVector
 import containers.EmailSparseVector
+import kernels.GaussianKernel
 import kernels.SimilarityFuns
-import learning.GhettoKDTree
 import learning.stochastic.SimpleDescent
-import learning.stochastic.StochasticDescent
 import org.apache.commons.math3.distribution.NormalDistribution
-import org.apache.commons.math3.random.RandomGenerator
+import org.apache.commons.math3.special.Erf
 import utils.*
 import java.util.*
 import kotlin.math.absoluteValue
@@ -20,7 +19,6 @@ class StochasticComponent(val nBasis: Int,
                           trainingVectors: List<EmailSparseVector>,
                           var holdout: List<EmailSparseVector>,
                           val nPartitions: Int = 10) {
-    private val perturber = NormalDistribution(org.apache.commons.math3.random.MersenneTwister(123), 0.0, 1.0)
 
     private val allSpams = trainingVectors.filter { it.label == "spam" }
     var spamVectors = allSpams
@@ -37,11 +35,11 @@ class StochasticComponent(val nBasis: Int,
 //    val ghettoTree = GhettoKDTree(trainingVectorComponent)
 
     var memoizedSpamDist = NormalDistribution(0.1, 2.0)
-    private val memoizedSpamDists = createNormalDists(ones, spamVectors)
+    private var memoizedSpamDists = createNormalDists(ones, spamVectors)
     private val memoizedSpamDists2 = createNormalDistPartitions(ones, spamVectors, 10)
 
     var memoizedHamDist = NormalDistribution(0.1, 2.0)
-    private val memoizedHamDists = createNormalDists(ones, hamVectors)
+    private var memoizedHamDists = createNormalDists(ones, hamVectors)
     private val memoizedHamDists2 = createNormalDistPartitions(ones, hamVectors, 10)
 
 
@@ -49,8 +47,46 @@ class StochasticComponent(val nBasis: Int,
         val w2 = weights
         val spamDist = createNormalDist(w2, spamVectors)
         val hamDist = createNormalDist(w2, hamVectors)
-        val transformed = (spamVectors + hamVectors).map { SimilarityFuns.dotProduct(it, w2) }
+        val transformed = (spamVectors + hamVectors).map { SimilarityFuns.dotProduct(it.components, w2) }
         return getDistance4(spamDist, hamDist, transformed)
+    }
+
+    fun foldDists(dists: Map<String, NormalDistribution>, weights: List<Double>): NormalDistribution {
+        var s1 = 0.0
+        var s2 = 0.0
+
+        dists.forEach { (component, dist) ->
+            val weight = weights[component.toInt()]
+            s1 += weight * (dist.mean.pow(2.0) + dist.standardDeviation.pow(2.0))
+            s2 += weight * dist.mean
+        }
+
+        val s3 = s2.pow(2.0)
+
+        val finalSd = Math.sqrt((s1 - s3).absoluteValue)
+        return NormalDistribution(s2, finalSd)
+    }
+
+
+    fun getComponentsDists(weights: List<Double>): Double {
+        val w2 = weights
+//        val spamDist = createNormalDists(w2, spamVectors)
+//        val hamDist = createNormalDists(w2, hamVectors)
+        val transformed = (spamVectors + hamVectors).map { SimilarityFuns.dotProduct(it.components, weights) }
+
+
+        val spamDist = foldDists(memoizedSpamDists, weights)
+        val hamDist  = foldDists(memoizedHamDists, weights)
+
+        val lf1 = transformed.map { spamDist.getPerturb(it) }.map { if (it <= 0.0) 0.0001 else it  }.normalize()
+        val lf2 = transformed.map { hamDist.getPerturb(it) }.map{if (it <= 0.0) 0.0001 else it}.normalize()
+
+
+        val d1 = symKldDist3(lf1, lf2)
+        val uniform = transformed.map { 1.0 }.normalize()
+        val d3 = -symKldDist3(lf1, uniform)
+        val d4 = -symKldDist3(lf2, uniform)
+        return d1 + (d3 + d4)
     }
 
     fun rbfF1Score(weights: List<Double>): Double {
@@ -126,18 +162,18 @@ class StochasticComponent(val nBasis: Int,
     }
 
     fun getDistance4(dist1: NormalDistribution, dist2: NormalDistribution, points: List<Double>): Double {
-        val lf1 = points.map { (dist1.getPerturb(it))}.normalize()
-        val lf2 = (points).map { (dist2.getPerturb(it))}.normalize()
-
+        val lf1 = points.map { (dist1.getPerturb(it).run { if (this == 0.0) 0.00000001 else this })}.normalize()
+        val lf2 = (points).map { (dist2.getPerturb(it).run { if (this == 0.0) 0.00000001 else this})}.normalize()
         val d1 = symKldDist3(lf1, lf2)
-
         val uniform = points.map { 1.0  }.normalize()
         val d3 = -symKldDist3(lf1, uniform)
         val d4 = -symKldDist3(lf2, uniform)
 
-
+//        println(dist1.standardDeviation / dist1.mean)
         return d1 + (d3 + d4)
     }
+
+
 
 
 
@@ -149,11 +185,11 @@ class StochasticComponent(val nBasis: Int,
 
     fun NormalDistribution.getPerturb(point: Double): Double {
         val dist = (point - mean).absoluteValue
-        val p1 = probability(mean - dist, mean + dist)
-//        return Math.pow(1.0 - p1, 1/3.0)
-//        return Math.exp(1.0 - p1)
-        return 1.0 - p1
+//        return 1 / (1 + Math.exp((dist.pow(2.0) / (2 * standardDeviation.pow(2.0)))))
+//        return 1 / (Math.exp(dist - standardDeviation))
+       return Erf.erfc(dist / (Math.sqrt(2.0) * standardDeviation))
     }
+
 
 
 
@@ -192,6 +228,7 @@ class StochasticComponent(val nBasis: Int,
 
     fun doTrain(winnow: Boolean = true, nIterations: Int = 600): List<Double> {
         val descender = SimpleDescent(nBasis, this::getAverageDist, onlyPos = false, useDist = false, winnow = winnow, endFun = {
+//            val descender = SimpleDescent(nBasis, this::getComponentsDists, onlyPos = false, useDist = false, winnow = winnow, endFun = {
             counter += 1
             spamVectors = allSpams
             hamVectors = allHams
@@ -200,6 +237,12 @@ class StochasticComponent(val nBasis: Int,
         return descender.search(nIterations) { weights ->
             memoizedHamDist = createNormalDist(weights, allHams)
             memoizedSpamDist = createNormalDist(weights, allSpams)
+
+//            memoizedHamDist =  foldDists(memoizedHamDists, weights)
+//            memoizedSpamDist = foldDists(memoizedSpamDists, weights)
+
+//            memoizedSpamDists = createNormalDists(weights, allHams)
+//            memoizedHamDists = createNormalDists(weights, allSpams)
 
             println("F1: ${getKNN(weights)}") }
     }
@@ -220,9 +263,10 @@ class StochasticComponent(val nBasis: Int,
 
 
     fun createNormalDist(weights: List<Double>, vectors: List<EmailSparseVector>): NormalDistribution {
-        val scores = vectors.map { SimilarityFuns.dotProduct(it, weights) }
+        val scores = vectors.map { SimilarityFuns.dotProduct(it.components, weights) }
         val average = scores.average()
         val variance = scores.map { (average - it).pow(2.0) }.sum()
+//        println(variance / average)
         return NormalDistribution(average, variance.pow(0.5).run { if (this <= 0.0) 0.001 else this })
     }
 
@@ -231,10 +275,11 @@ class StochasticComponent(val nBasis: Int,
 
         vectors.first().components.keys.forEach { component ->
             val weight = weights[component.toInt()]
-            val scores = vectors.map { vector -> vector.components[component]!!  }
-            val mean = scores.average() * weight
-            val variance = scores.map { (mean - it).pow(2.0) }.sum()
-            normDists[component] = NormalDistribution(mean, variance.pow(0.5).run { if (this <= 0.0) 0.001 else this })
+            val scores = vectors.map { vector -> vector.components[component]!! * weight  }
+//            val mean = scores.average() * weight
+            val mean = scores.average()
+            val variance = scores.map { (mean - it).pow(2.0) }.sum() / (scores.size - 1.0)
+            normDists[component] = NormalDistribution(mean, variance.pow(0.5).run { if (this <= 0.0) 0.0000001 else this })
 
         }
         return normDists
@@ -262,8 +307,9 @@ class StochasticComponent(val nBasis: Int,
 
     fun myLabeler(weights: List<Double>) = { e: EmailSparseVector ->
         val w2 = weights
-        val point = SimilarityFuns.dotProduct(e, w2)
-        if (memoizedSpamDist.getPerturb(point) > memoizedHamDist.getPerturb(point)) "spam" else "ham"
+        val point = SimilarityFuns.dotProduct(e.components, w2)
+//        if (memoizedSpamDist.getPerturb(point) > memoizedHamDist.getPerturb(point)) "spam" else "ham"
+        if ((memoizedSpamDist.mean - point).absoluteValue < (memoizedHamDist.mean - point).absoluteValue) "spam" else "ham"
 
 
 //        ghettoTree.retrieveCandidates(e, weights, 5)
@@ -293,7 +339,7 @@ class StochasticComponent(val nBasis: Int,
     }
 
     fun myDiscrimLabeler(weights: List<Double>) = { e: EmailSparseVector ->
-        val point = SimilarityFuns.dotProduct(e, weights)
+        val point = SimilarityFuns.dotProduct(e.components, weights)
         if ((point - weights.last()) > 0.0) "spam" else "ham"
     }
 
@@ -302,16 +348,38 @@ class StochasticComponent(val nBasis: Int,
 }
 
 fun weightLabeler(weights: List<Double>) =  { e: EmailSparseVector ->
-    val score = SimilarityFuns.dotProduct(e, weights)
+    val score = SimilarityFuns.dotProduct(e.components, weights)
     if (score > 0.5) "spam" else "ham"
 }
 
 fun knnLabeler(weights: List<Double>, vectors: List<EmailSparseVector>) =  { e: EmailSparseVector ->
-    vectors.map { it to SimilarityFuns.simComponentL1DistWeights(e, it, weights) }
+    vectors.map { it to SimilarityFuns.simComponentL1DistWeights(e.components, it.components, weights) }
         .sortedBy { it.second }
         .take(3)
         .map { it.first.label }
         .groupingBy { it }
         .eachCount()
         .maxBy { it.value }!!.key
+}
+
+
+fun main(args: Array<String>) {
+    val point = 2.2
+    val mean = 2.0
+    val sd = 0.25
+    val normal = NormalDistribution(mean, sd)
+
+
+    val dist = (point - mean).absoluteValue
+    val p1 = normal.probability(mean - dist, mean + dist)
+    val result = 1.0 - p1
+    val x1 = Erf.erfc(dist / (Math.sqrt(2.0) * sd ))
+    val x2 = -2.0/((Math.sqrt(Math.PI))) * Math.exp(-(x1.pow(2.0)))
+
+    println(result)
+    println(x2 / x1)
+
+
+
+
 }

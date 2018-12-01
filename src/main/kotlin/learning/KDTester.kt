@@ -17,7 +17,7 @@ class KDTester(val searcher: IndexSearcher) {
 
         holdouts.forEach { holdout ->
             val nearest = trainingComponent.vectors.map { bv ->
-                bv to SimilarityFuns.simComponentL1Dist(holdout, bv)
+                bv to SimilarityFuns.simComponentL1Dist(holdout.components, bv.components)
             }
                 .sortedBy { it.second }
                 .withIndex()

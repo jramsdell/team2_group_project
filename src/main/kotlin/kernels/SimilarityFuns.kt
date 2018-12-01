@@ -9,28 +9,28 @@ import kotlin.math.pow
 
 object SimilarityFuns {
 
-    fun simComponentL1Dist(v1: EmailSparseVector, v2: EmailSparseVector): Double {
-        val keys = v1.components.keys.union(v2.components.keys)
+    fun simComponentL1Dist(v1: Map<String,Double>, v2: Map<String,Double>): Double {
+        val keys = v1.keys.union(v2.keys)
         return keys.sumByDouble { key ->
-            val v1Component = v1.components[key] ?: 0.0
-            val v2Component = v2.components[key] ?: 0.0
+            val v1Component = v1[key] ?: 0.0
+            val v2Component = v2[key] ?: 0.0
             (v1Component - v2Component).absoluteValue
         }
     }
 
-    fun simComponentRawDiff(v1: EmailSparseVector, v2: EmailSparseVector): Double {
-        val keys = v1.components.keys.union(v2.components.keys)
+    fun simComponentRawDiff(v1: Map<String,Double>, v2: Map<String,Double>): Double {
+        val keys = v1.keys.union(v2.keys)
         return keys.sumByDouble { key ->
-            val v1Component = v1.components[key] ?: 0.0
-            val v2Component = v2.components[key] ?: 0.0
+            val v1Component = v1[key] ?: 0.0
+            val v2Component = v2[key] ?: 0.0
             (v1Component - v2Component)
         }
     }
 
-    fun simComponentDot(v1: EmailSparseVector, v2: EmailSparseVector): Double {
-        val keys = v1.components.keys.union(v2.components.keys)
-        val v1Norm = v1.components.normalize()
-        val v2Norm = v2.components.normalize()
+    fun simComponentDot(v1: Map<String,Double>, v2: Map<String,Double>): Double {
+        val keys = v1.keys.union(v2.keys)
+        val v1Norm = v1.normalize()
+        val v2Norm = v2.normalize()
 
         return keys.sumByDouble { key ->
             val v1Component = v1Norm[key] ?: 0.0
@@ -39,10 +39,10 @@ object SimilarityFuns {
         }
     }
 
-    fun simBigramDot(v1: EmailSparseVector, v2: EmailSparseVector): Double {
-        val keys = v1.bigrams.keys.union(v2.bigrams.keys)
-        val v1Norm = v1.bigrams.normalize()
-        val v2Norm = v2.bigrams.normalize()
+    fun simBigramDot(v1: Map<String,Double>, v2: Map<String,Double>): Double {
+        val keys = v1.keys.union(v2.keys)
+        val v1Norm = v1.normalize()
+        val v2Norm = v2.normalize()
 
         return keys.sumByDouble { key ->
             val v1Component = v1Norm[key] ?: 0.0
@@ -51,10 +51,10 @@ object SimilarityFuns {
         }
     }
 
-    fun simComponentNonlinear(v1: EmailSparseVector, v2: EmailSparseVector): Double {
-        val keys = v1.components.keys.union(v2.components.keys)
-        val v1Norm = v1.components.normalize()
-        val v2Norm = v2.components.normalize()
+    fun simComponentNonlinear(v1: Map<String,Double>, v2: Map<String,Double>): Double {
+        val keys = v1.keys.union(v2.keys)
+        val v1Norm = v1.normalize()
+        val v2Norm = v2.normalize()
 
         return keys.sumByDouble { key ->
             val v1Component = v1Norm[key] ?: 0.0
@@ -63,10 +63,16 @@ object SimilarityFuns {
         }
     }
 
-    fun simComponentDotCovariance(v1: EmailSparseVector, v2: EmailSparseVector, covarianceMap: HashMap<String, HashMap<String, Double>>): Double {
+    private fun symKldDist(d1: List<Double>, d2: List<Double>): Double = d1.zip(d2).sumByDouble { (v1, v2) ->
+        val div1 = (v1 * Math.log(v1) + v2 * Math.log(v2))
+        val div2 = (v1 + v2) * Math.log(v1 + v2)
+        div1 - div2
+    }
+
+    fun simComponentDotCovariance(v1: Map<String,Double>, v2: Map<String,Double>, covarianceMap: HashMap<String, HashMap<String, Double>>): Double {
         var score = 0.0
         var score2 = 0.0
-        val keys = v1.components.keys.union(v2.components.keys)
+        val keys = v1.keys.union(v2.keys)
 //        keys.forEach {  k1 ->
 //            val dist = covarianceMap[k1]
 //            if (dist != null) {
@@ -77,29 +83,57 @@ object SimilarityFuns {
 //
 //        }
 
-        v1.components.forEach { (k,v) ->
+        v1.forEach { (k,vd1) ->
             val dist = covarianceMap[k]
             if (dist != null) {
-                v2.components.forEach { (k2, v2) ->
-                    score +=  (dist[k2] ?: 0.0) * (v2 - v).absoluteValue
+                v2.forEach { (k2, vd2) ->
+                    score +=  (dist[k2] ?: 0.0)
                 }
             }
         }
-////        println(score)
-//
-//        v2.components.forEach { (k,v) ->
-//            val dist = covarianceMap[k]
-//            if (dist != null) {
-//                v1.components.forEach { (k2, v2) ->
-//                    score2 +=  (dist[k2] ?: 0.0) * (v2 - v).absoluteValue
-//                }
-//            }
-//        }
 
-//        score /= v1.components.size
-//        score2 /= v2.components.size
 
-        return score + score2
+
+        return score
+    }
+
+    fun simComponentDotCovariance2(v1: Map<String,Double>, v2: Map<String,Double>, covarianceMap: HashMap<String, HashMap<String, Double>>): Double {
+        var score = 0.0
+        val v1Dist = HashMap<String, Double>()
+        val v2Dist = HashMap<String, Double>()
+
+
+        v1.forEach { (k,vd1) ->
+            val dist = covarianceMap[k]
+            dist?.forEach { (neighbor, score) ->
+                v1Dist.merge(neighbor, score * vd1, ::sum)
+            }
+        }
+
+
+
+
+        v2.forEach { (k,vd1) ->
+            val dist = covarianceMap[k]
+            dist?.forEach { (neighbor, score) ->
+                v2Dist.merge(neighbor, score * vd1, ::sum)
+            }
+        }
+
+
+        val v1DistFinal = v1Dist.normalize()
+        val v2DistFinal = v2Dist.normalize()
+
+        v1DistFinal.keys.intersect(v2DistFinal.keys).forEach { k ->
+            val vR1 = v1DistFinal[k]!!.defaultWhenNotFinite(1/v1DistFinal.keys.size.toDouble())
+            val vR2 = v2DistFinal[k]!!.defaultWhenNotFinite(1/v2DistFinal.keys.size.toDouble())
+            val div1 = (vR1 * Math.log(vR1) + vR2 * Math.log(vR2))
+            val div2 = (vR1+ vR2) * Math.log(vR1 + vR2)
+            score += (div1 * div2).defaultWhenNotFinite(0.0)
+        }
+
+        return score
+
     }
 
 //    fun myKld(d1: HashMap<String, Double>, d2: HashMap<String, Double>): Double {
@@ -108,12 +142,12 @@ object SimilarityFuns {
 //    }
 
 
-    fun simComponentString(v1: EmailSparseVector, v2: EmailSparseVector): Double {
+    fun simComponentString(v1: Map<String,Double>, v2: Map<String,Double>): Double {
         val sim = NormalizedLevenshtein()
 
-        val best1 = v1.components.entries.toList()
+        val best1 = v1.entries.toList()
             .sortedByDescending { it.value }.take(10)
-        val best2 = v2.components.entries.toList()
+        val best2 = v2.entries.toList()
             .sortedByDescending { it.value }.take(10)
 
 
@@ -141,10 +175,10 @@ object SimilarityFuns {
 //        return kld(d1, midpoint) * 0.5 + kld(d2, midpoint) * 0.5
 //    }
 
-    fun simComponentDotKld(v1: EmailSparseVector, v2: EmailSparseVector): Double {
-        val keys = v1.components.keys.union(v2.components.keys)
-        val v1Norm = v1.components.normalize()
-        val v2Norm = v2.components.normalize()
+    fun simComponentDotKld(v1: Map<String,Double>, v2: Map<String,Double>): Double {
+        val keys = v1.keys.union(v2.keys)
+        val v1Norm = v1.normalize()
+        val v2Norm = v2.normalize()
 
         return keys.sumByDouble { key ->
             val v1Component = v1Norm[key] ?: 0.0
@@ -156,10 +190,10 @@ object SimilarityFuns {
         }
     }
 
-    fun simComponentDotKldBigram(v1: EmailSparseVector, v2: EmailSparseVector): Double {
-        val keys = v1.bigrams.keys.union(v2.bigrams.keys)
-        val v1Norm = v1.bigrams.normalize()
-        val v2Norm = v2.bigrams.normalize()
+    fun simComponentDotKldBigram(v1: Map<String,Double>, v2: Map<String,Double>): Double {
+        val keys = v1.keys.union(v2.keys)
+        val v1Norm = v1.normalize()
+        val v2Norm = v2.normalize()
 
         return keys.sumByDouble { key ->
             val v1Component = v1Norm[key] ?: 0.0
@@ -172,20 +206,20 @@ object SimilarityFuns {
     }
 
 
-    fun simOverlap(v1: EmailSparseVector, v2: EmailSparseVector): Double {
-        val keys = v1.components.keys.intersect(v2.components.keys)
-        return (2 * keys.size.toDouble()) / (v1.components.keys.size + v2.components.keys.size)
+    fun simOverlap(v1: Map<String,Double>, v2: Map<String,Double>): Double {
+        val keys = v1.keys.intersect(v2.keys)
+        return (2 * keys.size.toDouble()) / (v1.keys.size + v2.keys.size)
     }
 
-    fun simBigramOverlap(v1: EmailSparseVector, v2: EmailSparseVector): Double {
-        val keys = v1.bigrams.keys.intersect(v2.bigrams.keys)
-        return (2 * keys.size.toDouble()) / (v1.bigrams.keys.size + v2.bigrams.keys.size)
+    fun simBigramOverlap(v1: Map<String,Double>, v2: Map<String,Double>): Double {
+        val keys = v1.keys.intersect(v2.keys)
+        return (2 * keys.size.toDouble()) / (v1.keys.size + v2.keys.size)
     }
 
-    fun dotProduct(v1: EmailSparseVector, weights: List<Double>): Double {
-        val keys = v1.components.keys
+    fun dotProduct(v1: Map<String,Double>, weights: List<Double>): Double {
+        val keys = v1.keys
         return keys.sumByDouble { key ->
-            val v1Component = v1.components[key] ?: 0.0
+            val v1Component = v1[key] ?: 0.0
             (v1Component * weights[key.toInt()])
         }
     }
@@ -193,59 +227,61 @@ object SimilarityFuns {
 
 
 
-    fun simComponentL1DistWeights(v1: EmailSparseVector, v2: EmailSparseVector, weights: List<Double>): Double {
-        val keys = v1.components.keys.union(v2.components.keys)
+    fun simComponentL1DistWeights(v1: Map<String,Double>, v2: Map<String,Double>, weights: List<Double>): Double {
+        val keys = v1.keys.union(v2.keys)
         return keys.sumByDouble { key ->
-            val v1Component = v1.components[key] ?: 0.0
-            val v2Component = v2.components[key] ?: 0.0
+            val v1Component = v1[key] ?: 0.0
+            val v2Component = v2[key] ?: 0.0
             (v1Component - v2Component).absoluteValue * weights[key.toInt()]
         }
     }
 
-    fun simComponentL2Dist(v1: EmailSparseVector, v2: EmailSparseVector): Double {
-        val keys = v1.components.keys.union(v2.components.keys)
+    fun simComponentL2Dist(v1: Map<String,Double>, v2: Map<String,Double>): Double {
+        val keys = v1.keys.union(v2.keys)
         return keys.sumByDouble { key ->
-            val v1Component = v1.components[key] ?: 0.0
-            val v2Component = v2.components[key] ?: 0.0
+            val v1Component = v1[key] ?: 0.0
+            val v2Component = v2[key] ?: 0.0
             (v1Component - v2Component).pow(2.0)
         }.pow(0.5)
     }
 
-    fun simComponentL2DistWeights(v1: EmailSparseVector, v2: EmailSparseVector, weights: List<Double>): Double {
-        val keys = v1.components.keys.union(v2.components.keys)
+    fun simComponentL2DistWeights(v1: Map<String,Double>, v2: Map<String,Double>, weights: List<Double>): Double {
+        val keys = v1.keys.union(v2.keys)
         return keys.sumByDouble { key ->
-            val v1Component = v1.components[key] ?: 0.0
-            val v2Component = v2.components[key] ?: 0.0
+            val v1Component = v1[key] ?: 0.0
+            val v2Component = v2[key] ?: 0.0
             (v1Component - v2Component).pow(2.0) * weights[key.toInt()]
         }.pow(0.5)
     }
 
-    fun simComponentCosine(v1: EmailSparseVector, v2: EmailSparseVector): Double {
-        val keys = v1.components.keys.union(v2.components.keys)
+    fun simComponentCosine(v1: Map<String,Double>, v2: Map<String,Double>): Double {
+        val keys = v1.keys.union(v2.keys)
         val dotProduct =  keys.sumByDouble { key ->
-            val v1Component = v1.components[key] ?: 0.0
-            val v2Component = v2.components[key] ?: 0.0
+            val v1Component = v1[key] ?: 0.0
+            val v2Component = v2[key] ?: 0.0
             v1Component * v2Component
         }
 
-        val v1Norm = v1.components.values.sumByDouble { it.pow(2) }.pow(0.5)
-        val v2Norm = v2.components.values.sumByDouble { it.pow(2) }.pow(0.5)
+        val v1Norm = v1.values.sumByDouble { it.pow(2) }.pow(0.5)
+        val v2Norm = v2.values.sumByDouble { it.pow(2) }.pow(0.5)
 
         return dotProduct / (v1Norm * v2Norm)
     }
 
 
-    fun simBigramCosine(v1: EmailSparseVector, v2: EmailSparseVector): Double {
-        val keys = v1.bigrams.keys.union(v2.bigrams.keys)
+    fun simBigramCosine(v1: Map<String,Double>, v2: Map<String,Double>): Double {
+        val keys = v1.keys.union(v2.keys)
         val dotProduct =  keys.sumByDouble { key ->
-            val v1Component = v1.bigrams[key] ?: 0.0
-            val v2Component = v2.bigrams[key] ?: 0.0
+            val v1Component = v1[key] ?: 0.0
+            val v2Component = v2[key] ?: 0.0
             v1Component * v2Component
         }
 
-        val v1Norm = v1.bigrams.values.sumByDouble { it.pow(2) }.pow(0.5)
-        val v2Norm = v2.bigrams.values.sumByDouble { it.pow(2) }.pow(0.5)
+        val v1Norm = v1.values.sumByDouble { it.pow(2) }.pow(0.5)
+        val v2Norm = v2.values.sumByDouble { it.pow(2) }.pow(0.5)
 
         return dotProduct / (v1Norm * v2Norm)
     }
+
+    fun softPlus(x: Double) = Math.log(Math.exp(x) + 1.0)
 }

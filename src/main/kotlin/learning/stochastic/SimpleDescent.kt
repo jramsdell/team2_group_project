@@ -19,7 +19,7 @@ private data class StepResult(
         val gradient: Double
 )
 
-private fun List<Double>.transform() = this.normalize()
+private fun List<Double>.transform() = this.cosine()
 
 private fun perturbWeights(weights: List<Double>): List<Double>  {
     val normalDistribution = NormalDistribution(0.0, 0.1)
@@ -57,7 +57,7 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
         return steps.pmap { step ->
             val nWeights = weights.mapIndexed { fIndex, value -> if(feature == fIndex) value + step else value    }.transform()
 //            step to (scoreFun(nWeights) - base).run { if(step == -weights[feature]) this * ((weights.count { it == 0.0 } + 1.0) / (weights.size.toDouble() + 1.0))   else this } }
-        step to (scoreFun(nWeights) - base).run { if(step == -weights[feature]) this * 2.0    else this } }
+        step to (scoreFun(nWeights) - base).run { if(step == -weights[feature]) this * 1.0    else this } }
             .maxBy { it.second }!!
     }
 
@@ -74,59 +74,16 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
     }
 
 
-//    fun doStep() {
-//        curScore = scoreFun(weights)
-//        val best = (0 until nFeatures)
-//            .filter { weights[it] != 0.0 }
-//            .pmap { feature -> feature to getPartialGradient(feature, curScore) }
-//            .maxBy { it.second.second }!!
-//
-//        if (best.second.first == 0.0) {
-//            converged.set(true)
-//            println("Converged!")
-//            return
-//        }
-//
-//        lastStep[best.first] = best.second.first
-//
-//        weights = weights.mapIndexed { index, value -> if (index == best.first) value + best.second.first else value  }
-////            .normalize()
-//            .cosine()
-//    }
 
     fun doStep2() {
-//        curScore = scoreFun(weights.transform())
-
-
-
         curScore = scoreFun(weights)
-
-//
-//        val other = perturbWeights(weights).transform()
-//        val otherBest = scoreFun(other)
-//        if (otherBest - curScore > 0.0) {
-//            weights = other
-//            return
-//        }
-
         val next = priorities.poll()
         if (weights[next.feature] == 0.0) {
             return
         }
-
-
         curStep = next.feature
 
         val result = getPartialGradient(next.feature, curScore)
-//        println(result.second)
-
-//        if (result.first == 0.0 && result.second == 0.0) {
-////            converged.set(true)
-////            println("Converged!")
-//            return
-//        }
-
-
 
         lastStep[next.feature] = result.first
         val newResult = StepResult(feature = next.feature, step = result.first, gradient = result.second)
@@ -138,6 +95,7 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
             .transform()
 
     }
+
 
 
 
@@ -158,7 +116,7 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
 ////                        if ((-0.0000001 < value && value < 0.000000001) && lastStep[index]!! < 0.000001 && lastStep[index]!! > -0.0000001) (if (winnow) 0.0 else value) else value }
 ////                            if ((-0.001 < value && value < 0.001) && lastStep[index]!! < 0.01 && lastStep[index]!! > -0.01) (if (winnow) 0.0 else value) else value }
 //                    }
-                    if (it % 100 == 99 || winnow == false) {
+                    if (it % 100 == 2 || winnow == false) {
                         weightUser?.invoke(weights)
                         val count = weights.count { it != 0.0 }
                         println("$count : $curScore")
