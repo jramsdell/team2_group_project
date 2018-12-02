@@ -33,37 +33,58 @@ public class Main {
 		} else if (option.equals("classify")) {
 			String method = args[1];
 			IndexSearcher searcher = SearchUtils.createIndexSearcher("index");
+			LabelPredictor predictor = null;
 
 			if (method.equals("bayes")) {
-				LabelPredictor predictor = new NaiveBayesPredictor(searcher);
-				predictor.evaluate();
+				predictor = new NaiveBayesPredictor(searcher);
 			} else if (method.equals("bayes_bigrams")) {
-				LabelPredictor predictor = new NaiveBayesBigramPredictor(searcher);
-				predictor.evaluate();
+				 predictor = new NaiveBayesBigramPredictor(searcher);
 			} else if (method.equals("bayes_trigram")) {
-				LabelPredictor predictor = new NaiveBayesTrigramPredictor(searcher);
-				predictor.evaluate();
+				 predictor = new NaiveBayesTrigramPredictor(searcher);
 			} else if (method.equals("bayes_quadgram")) {
-				LabelPredictor predictor = new NaiveBayesQuadgramPredictor(searcher);
-				predictor.evaluate();
+				 predictor = new NaiveBayesQuadgramPredictor(searcher);
 			} else if (method.equals("kernel_embedding_4gram")) {
-				LabelPredictor predictor = new SimpleKernelPredictor(searcher, ComponentRepresentation.FOURGRAM);
-				predictor.evaluate();
+				 predictor = new SimpleKernelPredictor(searcher, ComponentRepresentation.FOURGRAM);
 			} else if (method.equals("multiple_kernel_embedding_4gram")) {
-				LabelPredictor predictor = new CombinedBasisPredictor(searcher, ComponentRepresentation.FOURGRAM);
-				predictor.evaluate();
+				 predictor = new CombinedBasisPredictor(searcher, ComponentRepresentation.FOURGRAM);
 			} else if (method.equals("kernel_embedding_unigram")) {
-				LabelPredictor predictor = new SimpleKernelPredictor(searcher, ComponentRepresentation.UNIGRAM);
-				predictor.evaluate();
+				 predictor = new SimpleKernelPredictor(searcher, ComponentRepresentation.UNIGRAM);
 			} else if (method.equals("multiple_kernel_embedding_unigram")) {
-				LabelPredictor predictor = new CombinedBasisPredictor(searcher, ComponentRepresentation.UNIGRAM);
-				predictor.evaluate();
+				 predictor = new CombinedBasisPredictor(searcher, ComponentRepresentation.UNIGRAM);
 			} else if (method.equals("kernel_embedding_bigram")) {
-				LabelPredictor predictor = new SimpleKernelPredictor(searcher, ComponentRepresentation.UNIGRAM);
-				predictor.evaluate();
+				 predictor = new SimpleKernelPredictor(searcher, ComponentRepresentation.BIGRAM);
 			} else if (method.equals("multiple_kernel_embedding_bigram")) {
-				LabelPredictor predictor = new CombinedBasisPredictor(searcher, ComponentRepresentation.UNIGRAM);
+				 predictor = new CombinedBasisPredictor(searcher, ComponentRepresentation.BIGRAM);
+			} else if (method.equals("lucene_bm25")) {
+				 predictor = new BM25Predictor(searcher);
+			} else if (method.equals("lucene_bm25_1")) {
+				 predictor = new BM25Predictor1(searcher);
+			} else if (method.equals("lucene_bm25_101")) {
+				 predictor = new BM25Predictor101(searcher);
+			} else if (method.equals("lucene_bm25_score")) {
+				 predictor = new BM25Predictorscore(searcher);
+			} else if (method.equals("lucene_combined")) {
+				predictor = new Combine(searcher);
+			} else if (method.equals("lucene_dirichlet")) {
+				predictor = new Dirichlet(searcher);
+			} else if (method.equals("lucene_inverse_rank")) {
+				predictor = new Inverserank(searcher);
+			} else if (method.equals("lucene_jm")) {
+				predictor = new JM(searcher);
+			} else if (method.equals("lucene_laplace")) {
+				predictor = new Laplace(searcher);
+			} else if (method.equals("bayes_knn")) {
+				predictor = new KnnPredictor(searcher);
+			} else if (method.equals("bayes_cosine")) {
+				predictor = new CosinePredictor(searcher);
+			} else if (method.equals("bayes_tfidf")) {
+				predictor = new TfidfPredictor(searcher);
+			}
+
+			if (predictor != null) {
 				predictor.evaluate();
+			} else {
+				System.out.println("Unknown classification method!: " + method);
 			}
 		}
 

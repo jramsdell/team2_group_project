@@ -15,7 +15,7 @@ public class KnnPredictor extends LabelPredictor {
     private HashMap<String, Double> unknownEmailTokens = new HashMap<>();
     private Tuple [] distances = new Tuple [10000000];
 
-    private KnnPredictor(IndexSearcher s) {
+    public KnnPredictor(IndexSearcher s) {
         super(s);
 
         // Train classifier on ham emails
