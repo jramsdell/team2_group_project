@@ -30,8 +30,21 @@ Note that you will see a bunch of log messages while this parser is running... i
 
 You can classify the emails by running the following command while in the project directory:
 
-java -jar target/team2_group_project-1.0-SNAPSHOT-jar-with-dependencies.jar classify parsed_emails.tsv
+```bash
+java -jar target/team2_group_project-1.0-SNAPSHOT-jar-with-dependencies.jar classify METHOD
+```
 
-This assumes that you parsed the TREC emails (described in the previous section).
+Where method is one of:
 
-The classifier will print one line per email. The first element in the line represents the true label of the email (spam or ham), while the second element in the line represents the label that the classifier assigned to the email. Finally, the F1-measure is printed after all labels have been printed.
+ * **bayes**: Naive Bayes implementation
+ * **bayes_bigram**: Naive Bayes using bigrams
+ * **bayes_trigram**: Naive Bayes using trigrams
+ * **bayes_quadgram**: Naive Bayes using quadgrams
+ * **kernel_embedding_4gram**: Kernel embedding using 4-character grams
+ * **multiple_kernel_embedding_4gram**: Multiple kernel embedding using 4-character grams
+ * **kernel_embedding_unigram**: Kernel embedding using unigrams
+ * **multiple_kernel_embedding_unigram**: Multiple kernel embedding using unigrams
+ * **kernel_embedding_bigram**: Kernel embedding using bigrams
+ * **multiple_kernel_embedding_bigram**: Multiple kernel embedding using bigrams 
+
+After running (sometimes for a while), the classifier will print the resulting F1 score when evaluated on all of the test emails.
