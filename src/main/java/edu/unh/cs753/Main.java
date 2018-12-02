@@ -89,6 +89,16 @@ public class Main {
 			} else {
 				System.out.println("Unknown classification method!: " + method);
 			}
+		} else if(option.equals("decision_tree")) {
+			try {
+                		String trainDataLoc = path;
+                		String testDataLoc = args[2];
+                		boolean useNB = Boolean.parseBoolean(args[3]);
+                		DecisionTree tree = new DecisionTree(trainDataLoc, testDataLoc, useNB);
+                		tree.evaluateModel();
+           		 } catch(Exception e) {
+                		System.out.println("Decision Tree build failed: " + e);
+            		}	
 		}
 
 	}
