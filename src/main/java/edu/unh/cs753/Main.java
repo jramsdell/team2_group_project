@@ -4,6 +4,7 @@ import components.ComponentRepresentation;
 import edu.unh.cs753.predictors.*;
 import edu.unh.cs753.utils.SearchUtils;
 import evaluation.KotlinEmailParser;
+import evaluation.KotlinEvaluator;
 import evaluation.KotlinNaiveBayesTrainer;
 import evaluation.KotlinTrainingEmailIndexer;
 import org.apache.lucene.search.IndexSearcher;
@@ -29,7 +30,9 @@ public class Main {
 		if (option.equals("parse")) {
 			KotlinEmailParser.INSTANCE.parseEmails(path);
 		} else if (option.equals("index")) {
+			KotlinEmailParser.INSTANCE.parseEmails(path);
 			KotlinTrainingEmailIndexer.INSTANCE.createIndex(path, "index");
+			KotlinEvaluator.Companion.writeTrainTest();
 		} else if (option.equals("classify")) {
 			String method = args[1];
 			IndexSearcher searcher = SearchUtils.createIndexSearcher("index");
