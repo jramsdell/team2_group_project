@@ -19,7 +19,7 @@ import java.util.List;
  * The IndexSearcher (searcher) is used to access a Lucene index containing training emails (spam and ham)
  */
 abstract public class LabelPredictor {
-    private IndexSearcher searcher;
+    public IndexSearcher searcher;
 
     public LabelPredictor(IndexSearcher s) {
         searcher = s;

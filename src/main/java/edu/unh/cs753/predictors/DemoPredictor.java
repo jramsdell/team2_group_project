@@ -11,7 +11,7 @@ import java.util.List;
 public class DemoPredictor extends LabelPredictor {
 
     public DemoPredictor(IndexSearcher s) {
-        super(s);
+     super(s);
 
         // Train your method on ham emails (if applicable)
         for(List<String> tokens : retrieveHamEmailTokens()) {
