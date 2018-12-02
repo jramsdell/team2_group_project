@@ -1,5 +1,6 @@
 package learning.training
 
+import components.ComponentRepresentation
 import components.StochasticComponent
 import components.TrainingVectorComponent
 import containers.EmailSparseVector
@@ -15,8 +16,8 @@ import kotlin.math.ln
 import kotlin.math.pow
 
 
-class SimpleStochasticTrainer(val searcher: IndexSearcher) {
-    val trainingComponent = TrainingVectorComponent(searcher)
+class SimpleStochasticTrainer(val searcher: IndexSearcher, val rep: ComponentRepresentation = ComponentRepresentation.FOURGRAM) {
+    val trainingComponent = TrainingVectorComponent(searcher, rep = rep)
 
     fun convertResult(weights: List<Double>, emails: List<EmailSparseVector>): EmailSparseVector {
         val finalComponents = ConcurrentHashMap<String, Double>()
@@ -130,6 +131,7 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
                 val stochastic = StochasticComponent(embedded.first().components.size, embedded, holdout)
 
                 val weights = stochastic.doTrain(true, 1200)
+            println(weights)
             convertResult2(weights, trainingComponent.basisCollection[index])
         }
 //            .run { nextLayer(this, ) }
@@ -167,6 +169,7 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
 
         val e = convertResult(weights, results)
         rerunResult(e, stochastic)
+        println("Beginning test-email labeling process (this may take a while)")
         val labeler = returnSingleVectorLabeler(e, stochastic)
 
         return { email: EmailSparseVector ->
@@ -247,6 +250,6 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
 
 fun main(args: Array<String>) {
     val searcher = SearchUtils.createIndexSearcher("index")
-    val predictor = SimpleStochasticTrainer(searcher)
-    predictor.doTrain3()
+    val predictor = SimpleStochasticTrainer(searcher, rep = ComponentRepresentation.BIGRAM)
+    predictor.doTrain()
 }

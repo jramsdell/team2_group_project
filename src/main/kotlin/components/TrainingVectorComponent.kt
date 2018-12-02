@@ -13,16 +13,16 @@ import java.util.*
 import kotlin.collections.ArrayList
 
 
+enum class ComponentRepresentation {
+    FOURGRAM,
+    UNIGRAM,
+    BIGRAM
+}
+
 class TrainingVectorComponent(val searcher: IndexSearcher, val nBases: Int = 80, val nSets: Int = 5, var nElements: Int = 3000,
-                              val nInterations: Int = 1200) {
+                              val nInterations: Int = 1200,
+                              val rep: ComponentRepresentation = ComponentRepresentation.FOURGRAM) {
     val vectors = ArrayList<EmailSparseVector>()
-//    val hamMatrix = (0 until 50).map { ArrayList<Double>() }
-//    val spamMatrix = (0 until 50).map { ArrayList<Double>() }
-
-//    val holdoutHamMatrix = (0 until 50).map { ArrayList<Double>() }
-//    val holdoutSpamMatrix = (0 until 50).map { ArrayList<Double>() }
-
-
     val basisVectors = ArrayList<EmailSparseVector>()
     val basisCollection = ArrayList<List<EmailSparseVector>>()
     val holdout = ArrayList<EmailSparseVector>()
@@ -153,8 +153,13 @@ class TrainingVectorComponent(val searcher: IndexSearcher, val nBases: Int = 80,
         // Create frequency dist of tokens
         val dist = doc.get("text")
             .split(" ")
-            .flatMap { createCharacterGrams(it, 4) }
-//            .run { createBigrams(this) }
+            .run {
+                when (rep) {
+                    ComponentRepresentation.UNIGRAM  -> this
+                    ComponentRepresentation.FOURGRAM -> flatMap { createCharacterGrams(it, 4) }
+                    ComponentRepresentation.BIGRAM   -> createBigrams(this)
+                }
+            }
             .groupingBy { it }
             .eachCount()
             .map { it.key to it.value.toDouble() }
@@ -233,6 +238,7 @@ class TrainingVectorComponent(val searcher: IndexSearcher, val nBases: Int = 80,
 
         return EmailSparseVector(label = v.label, components = transformedComponents, id = v.id)
     }
+
 
 
 }
