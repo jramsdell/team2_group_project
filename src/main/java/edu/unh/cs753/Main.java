@@ -29,7 +29,7 @@ public class Main {
 
 		 if (option.equals("index")) {
 			KotlinEmailParser.INSTANCE.parseEmails(path);
-			KotlinTrainingEmailIndexer.INSTANCE.createIndex(path, "index");
+			KotlinTrainingEmailIndexer.INSTANCE.createIndex("parsed_emails.tsv", "index");
 			KotlinEvaluator.Companion.writeTrainTest();
 		} else if (option.equals("classify")) {
 			String method = args[1];
