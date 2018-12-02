@@ -40,11 +40,23 @@ Where method is one of:
  * **bayes_bigram**: Naive Bayes using bigrams
  * **bayes_trigram**: Naive Bayes using trigrams
  * **bayes_quadgram**: Naive Bayes using quadgrams
+ * **bayes_cosine**: Variation of Naive Bayes where components are cosine-normalized
+ * **bayes_tfidf**: Variation of Naive Bayes where TFIDF is applied to terms
+ * **bayes_knn**: Variation of Naive Bayes using KNN
  * **kernel_embedding_4gram**: Kernel embedding using 4-character grams
  * **multiple_kernel_embedding_4gram**: Multiple kernel embedding using 4-character grams
  * **kernel_embedding_unigram**: Kernel embedding using unigrams
  * **multiple_kernel_embedding_unigram**: Multiple kernel embedding using unigrams
  * **kernel_embedding_bigram**: Kernel embedding using bigrams
  * **multiple_kernel_embedding_bigram**: Multiple kernel embedding using bigrams 
+ * **lucene_bm25**: Lucene BM25 email retrieval method (top 11)
+ * **lucene_bm25_1**: Lucene BM25 email retrieval method (top 1)
+ * **lucene_bm25_101**: Lucene BM25 email retrieval method (top 101)
+ * **lucene_dirichlet**: Lucene Dirichlet-smoothed retrieval method (top 11)
+ * **lucene_jm**: Lucene Jelenik-Mercer-smoothed retrieval method (top 11)
+ * **lucene_laplace**: Lucene Laplace-smoothed retrieval method (top 11)
+ * **lucene_inverse_rank**: Lucene retrieval method (top 11; score using inverse rank)
+ * **lucene_score**: Lucene retrieval method (sum over scores of top 11)
+ * **lucene_combined**: Lucene retrieval method (aggregate rank scores of top 11 under BM25 + Dirichlet + Jelenik Mercer)
 
 After running (sometimes for a while), the classifier will print the resulting F1 score when evaluated on all of the test emails.
