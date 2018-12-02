@@ -10,10 +10,13 @@ public object KotlinDataUtils {
         val indexDir = spamDataDirectory + "/full/index"
         val indexFile = File(indexDir).bufferedReader()
 
-        return indexFile
+        val indices = indexFile
             .readLines()
             .map { line -> line.split(" ").let { it[1].split("/").last() to it[0] } }
             .toMap()
+
+        indexFile.close()
+        return indices
     }
 
     public fun doSplit(labels: Map<String, String>, trainPortion: Double): Pair<Map<String, String>, Map<String, String>> {

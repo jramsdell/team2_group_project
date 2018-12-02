@@ -50,9 +50,14 @@ public class EmailParsing {
             mime4jParser.parse(bs);
         } catch (MimeException e) {
             e.printStackTrace();
+        } finally {
+            fs.close();
+            bs.close();
         }
 
         Email email = ((CustomContentHandler) contentHandler).getEmail();
+        fs.close();
+        bs.close();
         return email;
     }
 
