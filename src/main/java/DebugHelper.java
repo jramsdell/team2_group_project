@@ -1,4 +1,5 @@
 import evaluation.KotlinEmailParser;
+import evaluation.KotlinEvaluator;
 import evaluation.KotlinTrainingEmailIndexer;
 
 import java.io.IOException;
@@ -32,6 +33,8 @@ public class DebugHelper {
 
         // This will create a lucene index out of the training emails (you must run parseEmails() first to create  parsed_emails.tsv)
         createTrainingIndex();
+
+        KotlinEvaluator.Companion.writeTrainTest();
     }
 
 }

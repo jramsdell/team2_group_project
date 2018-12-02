@@ -48,6 +48,7 @@ class StochasticComponent(val nBasis: Int,
         val spamDist = createNormalDist(w2, spamVectors)
         val hamDist = createNormalDist(w2, hamVectors)
         val transformed = (spamVectors + hamVectors).map { SimilarityFuns.dotProduct(it.components, w2) }
+//        val transformed = (holdout).map { SimilarityFuns.dotProduct(it.components, w2) }
         return getDistance4(spamDist, hamDist, transformed)
     }
 
@@ -278,7 +279,8 @@ class StochasticComponent(val nBasis: Int,
             val scores = vectors.map { vector -> vector.components[component]!! * weight  }
 //            val mean = scores.average() * weight
             val mean = scores.average()
-            val variance = scores.map { (mean - it).pow(2.0) }.sum() / (scores.size - 1.0)
+//            val variance = scores.map { (mean - it).pow(2.0) }.sum() / (scores.size - 1.0)
+            val variance = scores.map { (mean - it).pow(2.0) }.sum()
             normDists[component] = NormalDistribution(mean, variance.pow(0.5).run { if (this <= 0.0) 0.0000001 else this })
 
         }
@@ -318,6 +320,7 @@ class StochasticComponent(val nBasis: Int,
 //            .eachCount()
 //            .maxBy { it.value }!!.key
     }
+
 
     fun myLabeler2(weights: List<Double>) = { e: EmailSparseVector ->
         var hamScore = 0.0

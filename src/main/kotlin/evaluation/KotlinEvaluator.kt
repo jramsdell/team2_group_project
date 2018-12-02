@@ -1,6 +1,7 @@
 package evaluation
 
 import edu.unh.cs753.predictors.LabelPredictor
+import utils.pmap
 import java.io.File
 import java.util.*
 
@@ -8,15 +9,20 @@ import java.util.*
 class KotlinEvaluator( val correctLabels: Map<String, String> ) {
 
     fun evaluateCalledLabelsUsingF1(calledLabels: Map<String, String>): Double {
-        var tn = 0
-        var tp = 0
-        var fn = 0
-        var fp = 0
+        var tn = 0.0
+        var tp = 0.0
+        var fn = 0.0
+        var fp = 0.0
 
         calledLabels.forEach { (id, label) ->
             val correctLabel = correctLabels[id]!!
 //            println("$correctLabel\t$label")
             val isSpam = correctLabel == "spam"
+
+//            if (correctLabel == "spam" && label == "spam") { tp += 1.0 }
+//            else if (correctLabel == "spam" && label == "ham") { fn += 1.0 }
+//            else if (correctLabel == "ham" && label == "ham") { tn += 1.0 }
+//            else { fp += 1.0 }
 
             if (isSpam && label == "spam") { tp += 1 }
             else if (isSpam && label != "spam") { fn += 1 }
@@ -24,6 +30,7 @@ class KotlinEvaluator( val correctLabels: Map<String, String> ) {
             else { fp += 1 }
 
         }
+
 
         val precision = tp.toDouble() / (tp + fp)
         val recall = tp.toDouble() / (tp + fn)
@@ -65,7 +72,34 @@ class KotlinEvaluator( val correctLabels: Map<String, String> ) {
 
         }
 
+
+
+
+        fun writeTrainTest()  {
+            val emails = KotlinEmailParser.readEmailTsv("parsed_emails.tsv")
+            val (train, test) = KotlinEmailParser.createTestTrainData(emails, 0.5)
+
+            val trainOut = File("train_emails.tsv").bufferedWriter()
+            val testOut = File("test_emails.tsv").bufferedWriter()
+
+            train.map { "${it.emailId}\t${it.label}\t${it.tokens.joinToString(" ")}" }
+                .joinToString("\n")
+                .run { trainOut.write(this) }
+
+            test.map { "${it.emailId}\t${it.label}\t${it.tokens.joinToString(" ")}" }
+                .joinToString("\n")
+                .run { testOut.write(this) }
+
+            trainOut.close()
+            testOut.close()
+
+        }
+
+
     }
 
+}
 
+fun main(args: Array<String>) {
+    KotlinEvaluator.writeTrainTest()
 }

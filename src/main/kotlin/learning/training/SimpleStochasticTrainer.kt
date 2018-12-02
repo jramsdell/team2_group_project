@@ -9,6 +9,7 @@ import org.apache.lucene.search.IndexSearcher
 import utils.*
 import java.lang.Double.sum
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.absoluteValue
 import kotlin.math.ln
 import kotlin.math.pow
 
@@ -120,28 +121,27 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
         val results = (0 until trainingComponent.basisCollection.size).map { index ->
                 val embedded = trainingComponent.vectors.map { trainingComponent.embed(it, trainingComponent.basisCollection[index]) }
                 val holdout = trainingComponent.holdout.map { trainingComponent.embed(it, trainingComponent.basisCollection[index]) }
+            // 769034163
 
                 val stochastic = StochasticComponent(embedded.first().components.size, embedded, holdout)
 
-                val weights = stochastic.doTrain(true, 1800)
-//            val e = convertResult2(weights, trainingComponent.basisCollection[index])
-//            rerunResult(e, stochastic)
-
-//            val e = convertResult2(weights, trainingComponent.basisCollection[index])
-//            e
+                val weights = stochastic.doTrain(true, 1200)
+            convertResult2(weights, trainingComponent.basisCollection[index])
         }
 //            .run { nextLayer(this, ) }
 //            .run { nextLayer(this, 70) }
 //            .run { nextLayer(this, 100) }
 
-//        val embedded = (trainingComponent.vectors + trainingComponent.extras).map { trainingComponent.embed(it, results) }
-//        val holdout = trainingComponent.holdout.map { trainingComponent.embed(it, results) }
-//        val stochastic = StochasticComponent(results.size, embedded, holdout)
-//        val weights = stochastic.doTrain2(winnow = false, nIterations = 8)
+        val embedded = (trainingComponent.vectors + trainingComponent.extras).map { trainingComponent.embed(it, results) }
+        val holdout = trainingComponent.holdout.map { trainingComponent.embed(it, results) }
+        val stochastic = StochasticComponent(results.size, embedded, holdout)
+        val weights = stochastic.doTrain2(winnow = false, nIterations = 8)
 
-//        val e = convertResult(weights, results)
-//        rerunResult(e, stochastic)
-
+        val e = convertResult(weights, results)
+        rerunResult(e, stochastic)
+//        println(e.components)
+//        e.components.toList().sortedByDescending { it.second.absoluteValue }
+//            .forEach { println("${it.first} : ${it.second}") }
 
     }
 

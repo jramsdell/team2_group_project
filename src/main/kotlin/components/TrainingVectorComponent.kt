@@ -13,9 +13,7 @@ import java.util.*
 import kotlin.collections.ArrayList
 
 
-class TrainingVectorComponent(val searcher: IndexSearcher) {
-    var nBases = 30
-    var nSets = 5
+class TrainingVectorComponent(val searcher: IndexSearcher, val nBases: Int = 80, val nSets: Int = 5, var nElements: Int = 3000) {
     val vectors = ArrayList<EmailSparseVector>()
 //    val hamMatrix = (0 until 50).map { ArrayList<Double>() }
 //    val spamMatrix = (0 until 50).map { ArrayList<Double>() }
@@ -28,11 +26,11 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
     val basisCollection = ArrayList<List<EmailSparseVector>>()
     val holdout = ArrayList<EmailSparseVector>()
     val extras = ArrayList<EmailSparseVector>()
-    val coMap = HashMap<String, HashMap<String, Double>>()
+//    val coMap = HashMap<String, HashMap<String, Double>>()
 
     val kernel = SoftplusKernel(SimilarityFuns::simComponentCosine)
     val kernel2 = SoftplusKernel(SimilarityFuns::simBigramCosine)
-    val kernel3 = SoftplusKernel({ e1, e2 -> SimilarityFuns.simComponentDotCovariance(e1, e2, coMap)})
+//    val kernel3 = SoftplusKernel({ e1, e2 -> SimilarityFuns.simComponentDotCovariance(e1, e2, coMap)})
     val kernel4 = SoftplusKernel(SimilarityFuns::simComponentDotKld)
     val kernel5 = SoftplusKernel(SimilarityFuns::simOverlap)
     val kernel6 = SoftplusKernel(SimilarityFuns::simBigramOverlap)
@@ -43,46 +41,45 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
     init {
         train()
         basisVectors.clear()
-        getCovariance()
+//        getCovariance()
     }
 
-    fun doExpand() {
+//    fun doExpand() {
+//
+//        coMap.entries.forEach { (k,v) ->
+//            val newMap = HashMap<String, Double>()
+//            v.entries.forEach { (k2, v2) ->
+//                coMap[k2]!!.entries.forEach { (k3, v3) ->
+//                    newMap.merge(k3, v3 * v2, ::sum)
+//                }
+//                newMap.merge(k2, v2, ::sum)
+//            }
+//
+//            val total = newMap.values.sum()
+//            v.clear()
+//            newMap.forEach { (k2, v2) ->
+//                v[k2] = v2 / total
+//            }
+//
+//        }
+//
+//    }
 
-        coMap.entries.forEach { (k,v) ->
-            val newMap = HashMap<String, Double>()
-            v.entries.forEach { (k2, v2) ->
-                coMap[k2]!!.entries.forEach { (k3, v3) ->
-                    newMap.merge(k3, v3 * v2, ::sum)
-//                    v.merge(k3, v3 * v2, ::sum)
-                }
-                newMap.merge(k2, v2, ::sum)
-            }
-
-            val total = newMap.values.sum()
-            v.clear()
-            newMap.forEach { (k2, v2) ->
-                v[k2] = v2 / total
-            }
-
-        }
-
-    }
-
-    fun getCovariance() {
-        vectors.forEach { vector ->
-            val mostFreq = vector.components.takeMostFrequent(5)
-            mostFreq.forEach { (c1, d1) ->
-                mostFreq.forEach { (c2, d2) ->
-                    if (c1 !in coMap)
-                        coMap[c1] = HashMap()
-                    if (c2 !in coMap)
-                        coMap[c2] = HashMap()
-
-                    coMap[c1]!!.merge(c2, d1 * d2, ::sum)
-//                    coMap[c2]!!.merge(c1, d1 * d2, ::sum)
-                }
-            }
-        }
+//    fun getCovariance() {
+//        vectors.forEach { vector ->
+//            val mostFreq = vector.components.takeMostFrequent(5)
+//            mostFreq.forEach { (c1, d1) ->
+//                mostFreq.forEach { (c2, d2) ->
+//                    if (c1 !in coMap)
+//                        coMap[c1] = HashMap()
+//                    if (c2 !in coMap)
+//                        coMap[c2] = HashMap()
+//
+//                    coMap[c1]!!.merge(c2, d1 * d2, ::sum)
+////                    coMap[c2]!!.merge(c1, d1 * d2, ::sum)
+//                }
+//            }
+//        }
 
 //        val total = coMap.entries.sumByDouble { it.value.entries.sumByDouble { it.value } }
 //        val instances = HashMap<String, Double>()
@@ -96,26 +93,15 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
 
 //        val final = instances
 //
-        coMap.entries.forEach { (k,v) ->
-            val total = v.values.sum()
-            v.forEach { (k2, v2) -> v[k2] = v2 / total }
-        }
-//
-//        doExpand()
-//        doExpand()
-//        doExpand()
-//        doExpand()
-//        doBackup()
-
-
-
-
-    }
+//        coMap.entries.forEach { (k,v) ->
+//            val total = v.values.sum()
+//            v.forEach { (k2, v2) -> v[k2] = v2 / total }
+//        }
+//    }
 
 
     private fun train() {
         val nDocs = searcher.indexReader.numDocs()
-        var nElements = 1000
         var randomDocs = (0 until nDocs).shuffled(Random(21)).take(nElements)
 //            .map(this::extractEmail)
             .pmap { extractEmail(it) }
@@ -166,7 +152,7 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
         // Create frequency dist of tokens
         val dist = doc.get("text")
             .split(" ")
-            .flatMap { createCharacterGrams(it, 4) }
+//            .flatMap { createCharacterGrams(it, 4) }
 //            .run { createBigrams(this) }
             .groupingBy { it }
             .eachCount()
@@ -206,14 +192,14 @@ class TrainingVectorComponent(val searcher: IndexSearcher) {
             val transformedComponents = bVectors.flatMap { basis ->
 //            val key = index.toString()
                 val results = listOf(
-                        kernel.sim(v.components, basis.components),
-                        kernel2.sim(v.bigrams, basis.bigrams),
-                        kernel3.sim(v.components, basis.components),
-                        kernel4.sim(v.components, basis.components),
-                        kernel5.sim(v.components, basis.components),
-                        kernel6.sim(v.bigrams, basis.bigrams),
-                        kernel7.sim(v.bigrams, basis.bigrams)
-                )
+                        kernel.sim(v.components, basis.components)
+//                        kernel2.sim(v.bigrams, basis.bigrams)
+//                        kernel3.sim(v.components, basis.components),
+//                        kernel4.sim(v.components, basis.components),
+//                        kernel5.sim(v.components, basis.components),
+//                        kernel6.sim(v.bigrams, basis.bigrams),
+//                        kernel7.sim(v.bigrams, basis.bigrams)
+                ).map { if (it.isNaN()) 0.0 else it }
         results }
                 .mapIndexed { index, d -> index.toString() to d  }
                 .toMap()
