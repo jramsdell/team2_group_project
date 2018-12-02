@@ -27,12 +27,10 @@ public class Main {
 		String option = args[0];
 		String path = args[1];
 
-		if (option.equals("parse")) {
+		 if (option.equals("index")) {
 			KotlinEmailParser.INSTANCE.parseEmails(path);
-		} else if (option.equals("index")) {
-			KotlinEmailParser.INSTANCE.parseEmails(path);
-//			KotlinTrainingEmailIndexer.INSTANCE.createIndex(path, "index");
-//			KotlinEvaluator.Companion.writeTrainTest();
+			KotlinTrainingEmailIndexer.INSTANCE.createIndex(path, "index");
+			KotlinEvaluator.Companion.writeTrainTest();
 		} else if (option.equals("classify")) {
 			String method = args[1];
 			IndexSearcher searcher = SearchUtils.createIndexSearcher("index");
