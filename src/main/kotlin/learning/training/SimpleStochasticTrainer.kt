@@ -4,6 +4,7 @@ import components.StochasticComponent
 import components.TrainingVectorComponent
 import containers.EmailSparseVector
 import edu.unh.cs753.utils.SearchUtils
+import kernels.SimilarityFuns
 import learning.GhettoKDTree
 import org.apache.lucene.search.IndexSearcher
 import utils.*
@@ -82,8 +83,7 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
 
     }
 
-
-    fun rerunResult(e: EmailSparseVector, stochastic: StochasticComponent) {
+    fun returnSingleVectorLabeler(e: EmailSparseVector, stochastic: StochasticComponent): (EmailSparseVector) -> String {
         val newEmbedded = trainingComponent.vectors.map { trainingComponent.embed(it, listOf(e)) }
         val newHoldout = trainingComponent.holdout.map { trainingComponent.embed(it, listOf(e)) }
 
@@ -97,9 +97,13 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
         stochastic.spamVectors = newSpam
         stochastic.memoizedSpamDist = stochastic.createNormalDist(w, newSpam)
         stochastic.memoizedHamDist = stochastic.createNormalDist(w, newHam)
-        val labeler = stochastic.myLabeler(w)
-        println("RESULT: ${stochastic.getF1(labeler)}")
+        return stochastic.myLabeler(w)
+    }
 
+
+    fun rerunResult(e: EmailSparseVector, stochastic: StochasticComponent) {
+        val labeler = returnSingleVectorLabeler(e, stochastic)
+        println("RESULT: ${stochastic.getF1(labeler)}")
     }
 
     fun nextLayer(curLayer: List<EmailSparseVector>, nChunks: Int) = curLayer
@@ -145,10 +149,104 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher) {
 
     }
 
+    fun doTrain2(): (EmailSparseVector) -> String {
+        val results = (0 until trainingComponent.basisCollection.size).map { index ->
+            val embedded = trainingComponent.vectors.map { trainingComponent.embed(it, trainingComponent.basisCollection[index]) }
+            val holdout = trainingComponent.holdout.map { trainingComponent.embed(it, trainingComponent.basisCollection[index]) }
+
+            val stochastic = StochasticComponent(embedded.first().components.size, embedded, holdout)
+
+            val weights = stochastic.doTrain(true, 1200)
+            convertResult2(weights, trainingComponent.basisCollection[index])
+        }
+
+        val embedded = (trainingComponent.vectors + trainingComponent.extras).map { trainingComponent.embed(it, results) }
+        val holdout = trainingComponent.holdout.map { trainingComponent.embed(it, results) }
+        val stochastic = StochasticComponent(results.size, embedded, holdout)
+        val weights = stochastic.doTrain2(winnow = false, nIterations = 9)
+
+        val e = convertResult(weights, results)
+        rerunResult(e, stochastic)
+        val labeler = returnSingleVectorLabeler(e, stochastic)
+
+        return { email: EmailSparseVector ->
+            val embedding = trainingComponent.embed(email, listOf(e))
+            labeler(embedding)
+        }
+//        println(e.components)
+//        e.components.toList().sortedByDescending { it.second.absoluteValue }
+//            .forEach { println("${it.first} : ${it.second}") }
+
+    }
+
+    fun doTrain3() {
+        val results = (0 until trainingComponent.basisCollection.size).map { index ->
+            val embedded = trainingComponent.vectors.map { trainingComponent.embed(it, trainingComponent.basisCollection[index]) }
+            val holdout = trainingComponent.holdout.map { trainingComponent.embed(it, trainingComponent.basisCollection[index]) }
+
+
+            var stochastic = StochasticComponent(embedded.first().components.size, embedded, holdout)
+
+            val weights = stochastic.doTrain(true, 600)
+
+            val dist1 = stochastic.createNormalDist(weights, stochastic.spamVectors)
+            val dist2 = stochastic.createNormalDist(weights, stochastic.hamVectors)
+
+            val ideal = embedded.map {
+                val point = SimilarityFuns.dotProduct(it.components, weights)
+//                val dist = Math.min((dist1.mean - point).absoluteValue, (dist2.mean - point).absoluteValue)
+                val dist = (((dist1.mean + dist2.mean) / 2.0) - point).absoluteValue
+                it to dist }
+                .sortedBy {it.second }
+                .take(80)
+                .map { it.first }
+//                .onEach { println(it.label) }
+                .map { it.id }
+                .toSet()
+
+
+
+//            val ideal2 = embedded.map { it.id }.shuffled().take(80).toSet()
+            val newBasis = ideal
+                .run { trainingComponent.vectors.filter { this.contains(it.id) } }
+            val embedded2 = trainingComponent.vectors
+                .filter { it.id !in ideal }
+                .map { trainingComponent.embed(it, newBasis) }
+            val holdout2 = trainingComponent.holdout.map { trainingComponent.embed(it, newBasis) }
+            println("---")
+//            val embedded2 = embedded.map { trainingComponent.embed2(it, newBasis, weights.map { 1.0 }) }
+//            val holdout2 = holdout.map { trainingComponent.embed2(it, newBasis, weights.map { 1.0 }) }
+
+            stochastic =StochasticComponent(embedded2.first().components.size, embedded2, holdout2)
+            val w2 = stochastic.doTrain(true, 1200)
+
+            println("---")
+
+            println("DDO")
+
+//            convertResult2(weights, trainingComponent.basisCollection[index])
+        }
+
+//        val embedded = (trainingComponent.vectors + trainingComponent.extras).map { trainingComponent.embed(it, results) }
+//        val holdout = trainingComponent.holdout.map { trainingComponent.embed(it, results) }
+//        val stochastic = StochasticComponent(results.size, embedded, holdout)
+//        val weights = stochastic.doTrain2(winnow = false, nIterations = 9)
+//
+//        val e = convertResult(weights, results)
+//        rerunResult(e, stochastic)
+//        val labeler = returnSingleVectorLabeler(e, stochastic)
+//
+//        return { email: EmailSparseVector ->
+//            val embedding = trainingComponent.embed(email, listOf(e))
+//            labeler(embedding)
+//        }
+
+    }
+
 }
 
 fun main(args: Array<String>) {
     val searcher = SearchUtils.createIndexSearcher("index")
     val predictor = SimpleStochasticTrainer(searcher)
-    predictor.doTrain()
+    predictor.doTrain3()
 }

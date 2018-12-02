@@ -31,6 +31,7 @@ private fun perturbWeights(weights: List<Double>): List<Double>  {
 
 class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, val onlyPos: Boolean = false, val useDist: Boolean = true, val endFun: (() -> Unit)? = null, val winnow: Boolean = true) {
 //    var weights = (0 until nFeatures).map { -Math.random() }.normalize()
+    var debug: Boolean = true
     var weights = (0 until nFeatures).map { 2.0 }.transform()
     val converged = AtomicBoolean(false)
     private val priorities = PriorityQueue<StepResult>(kotlin.Comparator { t1, t2 -> -compareValues(t1.gradient, t2.gradient)  })
@@ -48,6 +49,7 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
 //        val steps = listOf(-0.0001, -0.001, -0.01, 0.0, -0.05, 0.001, 0.0001, 0.01, 0.05, -weights[feature], -(weights[feature] * 2), weights[feature] * 0.5, -weights[feature] * 0.5)
 //        val steps = listOf(-0.0001, -0.001, -0.01, -0.05, 0.001, 0.0001, 0.01, 0.05, -weights[feature], -(weights[feature] * 2))
         val steps = listOf(-0.001, -0.01, -0.05, 0.001, 0.01, 0.05, -weights[feature], -(weights[feature] * 2))
+//        val steps = listOf(-0.001, -0.01, -0.05, 0.001, 0.01, 0.05, -(weights[feature] * 2))
 //        val steps = listOf(-0.001, -0.01, -0.05, 0.001, 0.01, 0.05, -weights[feature], -(weights[feature] * 2))
 //        val steps = listOf(-0.0001, -0.001, -0.01, 0.0, -0.05, 0.001, 0.0001, 0.01, 0.05, -(weights[feature] * 2))
 //        val steps = listOf(-0.0001, -0.001, -0.01, 0.0, -0.05, -0.25, 0.001, 0.0001, 0.01, 0.05, 0.25)
@@ -116,7 +118,7 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
 ////                        if ((-0.0000001 < value && value < 0.000000001) && lastStep[index]!! < 0.000001 && lastStep[index]!! > -0.0000001) (if (winnow) 0.0 else value) else value }
 ////                            if ((-0.001 < value && value < 0.001) && lastStep[index]!! < 0.01 && lastStep[index]!! > -0.01) (if (winnow) 0.0 else value) else value }
 //                    }
-                    if (it % 100 == 2 || winnow == false) {
+                    if ((it % 100 == 99 || winnow == false) && debug) {
                         weightUser?.invoke(weights)
                         val count = weights.count { it != 0.0 }
                         println("$count : $curScore")

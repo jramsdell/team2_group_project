@@ -29,8 +29,8 @@ object SimilarityFuns {
 
     fun simComponentDot(v1: Map<String,Double>, v2: Map<String,Double>): Double {
         val keys = v1.keys.union(v2.keys)
-        val v1Norm = v1.normalize()
-        val v2Norm = v2.normalize()
+        val v1Norm = v1
+        val v2Norm = v2
 
         return keys.sumByDouble { key ->
             val v1Component = v1Norm[key] ?: 0.0
@@ -41,8 +41,8 @@ object SimilarityFuns {
 
     fun simBigramDot(v1: Map<String,Double>, v2: Map<String,Double>): Double {
         val keys = v1.keys.union(v2.keys)
-        val v1Norm = v1.normalize()
-        val v2Norm = v2.normalize()
+        val v1Norm = v1
+        val v2Norm = v2
 
         return keys.sumByDouble { key ->
             val v1Component = v1Norm[key] ?: 0.0

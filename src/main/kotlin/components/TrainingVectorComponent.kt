@@ -13,7 +13,8 @@ import java.util.*
 import kotlin.collections.ArrayList
 
 
-class TrainingVectorComponent(val searcher: IndexSearcher, val nBases: Int = 80, val nSets: Int = 5, var nElements: Int = 3000) {
+class TrainingVectorComponent(val searcher: IndexSearcher, val nBases: Int = 80, val nSets: Int = 5, var nElements: Int = 3000,
+                              val nInterations: Int = 1200) {
     val vectors = ArrayList<EmailSparseVector>()
 //    val hamMatrix = (0 until 50).map { ArrayList<Double>() }
 //    val spamMatrix = (0 until 50).map { ArrayList<Double>() }
@@ -152,7 +153,7 @@ class TrainingVectorComponent(val searcher: IndexSearcher, val nBases: Int = 80,
         // Create frequency dist of tokens
         val dist = doc.get("text")
             .split(" ")
-//            .flatMap { createCharacterGrams(it, 4) }
+            .flatMap { createCharacterGrams(it, 4) }
 //            .run { createBigrams(this) }
             .groupingBy { it }
             .eachCount()
@@ -207,6 +208,31 @@ class TrainingVectorComponent(val searcher: IndexSearcher, val nBases: Int = 80,
         return EmailSparseVector(label = v.label, components = transformedComponents, id = v.id)
     }
 
+    fun embed2(v: EmailSparseVector, bVectors: List<EmailSparseVector>, weights: List<Double>): EmailSparseVector {
+        val transformedComponents = bVectors.withIndex().flatMap { (index, basis) ->
+            val results = listOf(
+                    kotlin.run {
+//                        val comp1 = v.components.mapValues { it.value * weights[it.key.toInt()] }
+//                            .cosine()
+//                        val comp2 = basis.components.mapValues { it.value * weights[it.key.toInt()] }
+//                            .cosine()
+
+                        val comp1 = v.components
+                        val comp2 = basis.components
+
+                        comp1.keys.sumByDouble { k ->
+                            val v1 = comp1[k]!!
+                            val v2 = comp2[k]!!
+                            v1 * v2 * weights[k.toInt()]
+                        }
+                    }
+            ).map { if (it.isNaN()) 0.0 else it }
+            results }
+            .mapIndexed { index, d -> index.toString() to d  }
+            .toMap()
+
+        return EmailSparseVector(label = v.label, components = transformedComponents, id = v.id)
+    }
 
 
 }
