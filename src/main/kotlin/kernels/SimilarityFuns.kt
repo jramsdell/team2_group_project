@@ -1,7 +1,6 @@
 package kernels
 
 import containers.EmailSparseVector
-import info.debatty.java.stringsimilarity.*
 import utils.*
 import java.lang.Double.sum
 import kotlin.math.absoluteValue
@@ -136,44 +135,6 @@ object SimilarityFuns {
 
     }
 
-//    fun myKld(d1: HashMap<String, Double>, d2: HashMap<String, Double>): Double {
-//        d1.keys.intersect(d2.keys)
-//            .forEach { () }
-//    }
-
-
-    fun simComponentString(v1: Map<String,Double>, v2: Map<String,Double>): Double {
-        val sim = NormalizedLevenshtein()
-
-        val best1 = v1.entries.toList()
-            .sortedByDescending { it.value }.take(10)
-        val best2 = v2.entries.toList()
-            .sortedByDescending { it.value }.take(10)
-
-
-        val results = best1.map{ (v1Comp, v1Freq) ->
-            best2.map { (v2Comp, v2Freq) ->
-                sim.similarity(v1Comp, v2Comp) * Math.log(v1Freq) * Math.log(v2Freq)
-            }.max()!!
-        }.max()!!
-
-        val results2 = best2.map{ (v1Comp, v1Freq) ->
-            best1.map { (v2Comp, v2Freq) ->
-                sim.similarity(v1Comp, v2Comp) * Math.log(v1Freq) * Math.log(v2Freq)
-            }.max()!!
-        }.max()!!
-
-        return results.defaultWhenNotFinite(0.0) + results2.defaultWhenNotFinite(0.0)
-    }
-
-//    private fun kld(d1: List<Double>, d2: List<Double>): Double = d1.zip(d2).sumByDouble { (v1, v2) ->
-//        v1 * Math.log(v1 / v2)
-//    }
-//
-//    private fun symKldDist3(d1: List<Double>, d2: List<Double>): Double {
-//        val midpoint = d1.zip(d2).map { it.first * 0.5 + it.second * 0.5 }
-//        return kld(d1, midpoint) * 0.5 + kld(d2, midpoint) * 0.5
-//    }
 
     fun simComponentDotKld(v1: Map<String,Double>, v2: Map<String,Double>): Double {
         val keys = v1.keys.union(v2.keys)
