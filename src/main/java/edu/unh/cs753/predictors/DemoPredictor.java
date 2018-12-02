@@ -1,5 +1,6 @@
 package edu.unh.cs753.predictors;
 
+import edu.unh.cs.treccar_v2.Data;
 import edu.unh.cs753.BayesCounter;
 import edu.unh.cs753.utils.SearchUtils;
 import org.apache.lucene.search.IndexSearcher;
