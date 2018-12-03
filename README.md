@@ -60,3 +60,15 @@ Where method is one of:
  * **lucene_combined**: Lucene retrieval method (aggregate rank scores of top 11 under BM25 + Dirichlet + Jelenik Mercer)
 
 After running (sometimes for a while), the classifier will print the resulting F1 score when evaluated on all of the test emails.
+
+Decision Tree
+The decision tree is run with the option "decision_tree", and requires the following arguments to run: 
+  <train_data_file_loc> <test_data_loc> <add_naive_bayes_features>
+  The training csv (or tsv) file, the test csv (or tsv) file and true or false to add naive bayes features or not.
+
+The command to run the maven jar file with args is:
+java -jar target/team2_group_project-1.0-SNAPSHOT-jar-with-dependencies.jar decision_tree <train_data_file_loc> <test_data_loc> <add_naive_bayes_features> 
+
+There is a script called run.sh that will compile and run the jar file command. The train and test files are too large to add to github so they must be local on your machine somewhere. If you are tring to test the decision tree and need these files, please email me at tsy23@wildcats.unh.edu.
+
+
