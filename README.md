@@ -61,7 +61,10 @@ Where method is one of:
 
 After running (sometimes for a while), the classifier will print the resulting F1 score when evaluated on all of the test emails.
 
+
 Decision Tree
+
+
 The decision tree is run with the option "decision_tree", and requires the following arguments to run: 
   <train_data_file_loc> <test_data_loc> <add_naive_bayes_features>
   The training csv (or tsv) file, the test csv (or tsv) file and true or false to add naive bayes features or not.
