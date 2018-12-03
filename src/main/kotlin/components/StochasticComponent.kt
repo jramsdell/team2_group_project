@@ -9,6 +9,7 @@ import learning.stochastic.SimpleDescent
 import org.apache.commons.math3.distribution.NormalDistribution
 import org.apache.commons.math3.special.Erf
 import utils.*
+import java.io.File
 import java.util.*
 import kotlin.math.absoluteValue
 import kotlin.math.pow
@@ -26,6 +27,7 @@ class StochasticComponent(val nBasis: Int,
 
 
     private val ones = (0 until nBasis).map { 1.0 }
+//    val debugOut = File("results.tsv").bufferedWriter()
 
 
 
@@ -42,13 +44,42 @@ class StochasticComponent(val nBasis: Int,
     private var memoizedHamDists = createNormalDists(ones, hamVectors)
     private val memoizedHamDists2 = createNormalDistPartitions(ones, hamVectors, 10)
 
+    val hamCovariance = generateCovarianceMatrix(hamVectors)
+    val spamCovariance = generateCovarianceMatrix(spamVectors)
 
     fun getAverageDist(weights: List<Double>): Double {
         val w2 = weights
         val spamDist = createNormalDist(w2, spamVectors)
+
+        val variance = spamDist.standardDeviation.pow(2.0)
+        val nComponents = spamVectors.first().components.size
+        val theoreticalVariance = spamVectors.first().components.keys.sumByDouble { component ->
+            val weight = weights[component.toInt()]
+            (0 until nComponents).sumByDouble { c2 ->
+                spamCovariance[setOf(component, c2.toString())]!! * weight * weights[c2.toInt()]
+            }
+
+        }
+        println("${variance / spamVectors.size} : $theoreticalVariance")
+
         val hamDist = createNormalDist(w2, hamVectors)
         val transformed = (spamVectors + hamVectors).map { SimilarityFuns.dotProduct(it.components, w2) }
-//        val transformed = (holdout).map { SimilarityFuns.dotProduct(it.components, w2) }
+        return getDistance4(spamDist, hamDist, transformed)
+    }
+
+    fun getAverageDist2(weights: List<Double>): Double {
+        val w2 = weights
+        val spamDist = createNormalDist(w2, spamVectors)
+        val hamDist = createNormalDist(w2, hamVectors)
+//        val transformed = (spamVectors + hamVectors).map { SimilarityFuns.dotProduct(it.components, w2) }
+//        val spamPoints = (spamVectors).map { SimilarityFuns.dotProduct(it.components, w2) }
+//            .joinToString(" ")
+//        val hamPoints = (hamVectors).map { SimilarityFuns.dotProduct(it.components, w2) }
+//            .joinToString(" ")
+        val transformed = (holdout).map { SimilarityFuns.dotProduct(it.components, w2) }
+
+//        debugOut.write("${hamDist.mean}\t${hamDist.standardDeviation}\t${spamDist.mean}\t${spamDist.standardDeviation}\t$hamPoints\t$spamPoints\n")
+
         return getDistance4(spamDist, hamDist, transformed)
     }
 
@@ -66,6 +97,38 @@ class StochasticComponent(val nBasis: Int,
 
         val finalSd = Math.sqrt((s1 - s3).absoluteValue)
         return NormalDistribution(s2, finalSd)
+    }
+
+    fun generateCovarianceMatrix(vectors: List<EmailSparseVector>): HashMap<Set<String>, Double> {
+//        val sds = HashMap<String, Double>()
+        val results = vectors.first().components
+            .map { component ->
+                val values = vectors.map { it.components[component.key]!! }
+                val mean = values.average()
+                val geoMean = values.reduce { acc, cur -> acc * (if (cur == 0.0) 1.0 else cur) }
+                    .pow(1.0/(values.count { it != 0.0 }))
+//                println("$geoMean : $mean")
+//                val variance = values.sumByDouble { (mean - it).pow(2.0) } / values.size
+//                sds[component.key] = variance.pow(0.5)
+                Triple(component.key, mean, values)
+            }
+
+
+        val covarianceMatrix = HashMap<Set<String>, Double>()
+
+        results.forEach { (r1, mean1, values1) ->
+            results.onEach { (r2, mean2, values2) ->
+                val covariance =  values1.zip(values2).sumByDouble { (v1, v2) -> (v1 - mean1) * (v2 - mean2) } / values1.size
+//                covarianceMatrix[setOf(r1, r2)] = covariance / (sds[r1]!! * sds[r2]!!)
+                covarianceMatrix[setOf(r1, r2)] = covariance
+            }
+        }
+        return covarianceMatrix
+
+//        covarianceMatrix.entries
+//            .sortedByDescending { it.value.absoluteValue }
+//            .forEach { println("${it.key} : ${it.value}") }
+
     }
 
 
@@ -170,9 +233,11 @@ class StochasticComponent(val nBasis: Int,
         val d3 = -symKldDist3(lf1, uniform)
         val d4 = -symKldDist3(lf2, uniform)
 
-//        println(dist1.standardDeviation / dist1.mean)
         return d1 + (d3 + d4)
     }
+
+
+
 
 
 
@@ -228,13 +293,18 @@ class StochasticComponent(val nBasis: Int,
 
 
     fun doTrain(winnow: Boolean = true, nIterations: Int = 600): List<Double> {
-        val descender = SimpleDescent(nBasis, this::getAverageDist, onlyPos = false, useDist = false, winnow = winnow, endFun = {
+        val descender = SimpleDescent(nBasis, this::getAverageDist, onlyPos = false, useDist = false, winnow = winnow, endFun = { weights ->
 //            val descender = SimpleDescent(nBasis, this::getComponentsDists, onlyPos = false, useDist = false, winnow = winnow, endFun = {
             counter += 1
             spamVectors = allSpams
             hamVectors = allHams
 
+//            getAverageDist2(weights)
+
         })
+
+//        generateCovarianceMatrix(spamVectors)
+
         return descender.search(nIterations) { weights ->
             memoizedHamDist = createNormalDist(weights, allHams)
             memoizedSpamDist = createNormalDist(weights, allSpams)
@@ -266,6 +336,9 @@ class StochasticComponent(val nBasis: Int,
     fun createNormalDist(weights: List<Double>, vectors: List<EmailSparseVector>): NormalDistribution {
         val scores = vectors.map { SimilarityFuns.dotProduct(it.components, weights) }
         val average = scores.average()
+//        val geoAverage = 10.0.pow(scores.filter { it != 0.0 }.map { Math.log(it.absoluteValue) }.average())
+//        val average = (10.0.pow(scores.sumByDouble { Math.log10(it.absoluteValue) } / scores.size))
+
         val variance = scores.map { (average - it).pow(2.0) }.sum()
 //        println(variance / average)
         return NormalDistribution(average, variance.pow(0.5).run { if (this <= 0.0) 0.001 else this })
