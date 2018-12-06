@@ -132,6 +132,8 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher, val rep: ComponentRep
 
                 val weights = stochastic.doTrain(true, 1200)
             println(weights)
+//            stochastic.debugOut.close()
+//            return
             convertResult2(weights, trainingComponent.basisCollection[index])
         }
 //            .run { nextLayer(this, ) }
@@ -250,6 +252,6 @@ class SimpleStochasticTrainer(val searcher: IndexSearcher, val rep: ComponentRep
 
 fun main(args: Array<String>) {
     val searcher = SearchUtils.createIndexSearcher("index")
-    val predictor = SimpleStochasticTrainer(searcher, rep = ComponentRepresentation.BIGRAM)
+    val predictor = SimpleStochasticTrainer(searcher, rep = ComponentRepresentation.FOURGRAM)
     predictor.doTrain()
 }

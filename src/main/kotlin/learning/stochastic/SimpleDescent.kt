@@ -29,7 +29,7 @@ private fun perturbWeights(weights: List<Double>): List<Double>  {
 
 
 
-class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, val onlyPos: Boolean = false, val useDist: Boolean = true, val endFun: (() -> Unit)? = null, val winnow: Boolean = true) {
+class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, val onlyPos: Boolean = false, val useDist: Boolean = true, val endFun: ((List<Double>) -> Unit)? = null, val winnow: Boolean = true) {
 //    var weights = (0 until nFeatures).map { -Math.random() }.normalize()
     var debug: Boolean = true
     var weights = (0 until nFeatures).map { 2.0 }.transform()
@@ -108,7 +108,7 @@ class SimpleDescent(val nFeatures: Int, val scoreFun: (List<Double>) -> Double, 
                 if (!converged.get() && priorities.isNotEmpty()) {
 
                     doStep2()
-                    endFun?.invoke()
+                    endFun?.invoke(weights)
 //                    if (it > 100) {
 ////                        val cutoff = 1 / (weights.map { it.absoluteValue }.sum() * 2)
 //                        val cutoff = 1.0 / (weights.count { it != 0.0 } * 2)
